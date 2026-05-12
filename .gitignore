@@ -1,2 +1,19 @@
+# dependencies
 node_modules
+
+# build output
 dist
+
+# environment / secrets
+.env*
+!.env.example
+
+# logs
+*.log
+pnpm-debug.log*
+
+# editor / OS
+.vscode
+.idea
+.DS_Store
+
