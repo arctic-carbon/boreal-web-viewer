@@ -15,10 +15,9 @@ Additional data layers will be added over time.
 ## Setup
 
 ```bash
-git clone --recurse-submodules https://github.com/<your-username>/boreal-web-viewer.git
+git clone https://github.com/arctic-carbon/boreal-web-viewer.git
 cd boreal-web-viewer
 pnpm install
-pnpm build:deps
 pnpm dev
 ```
 
@@ -32,14 +31,4 @@ The app streams tiles directly from COGs hosted on [source.coop](https://source.
 2. A GPU shader rescales values to a user-adjustable min/max range
 3. A viridis colormap is applied via texture lookup
 4. Zero values are treated as nodata and discarded
-
-## Submodule
-
-This project uses [deck.gl-raster](https://github.com/developmentseed/deck.gl-raster) as a git submodule (via a [fork](https://github.com/maxrjones/deck.gl-raster)) to include an unreleased fix for custom render pipelines with signed integer data.
-
-Update the submodules and rebuild with:
-
-```bash
-git submodule sync && git submodule update --remote deck.gl-raster && pnpm build:deps
-```
 

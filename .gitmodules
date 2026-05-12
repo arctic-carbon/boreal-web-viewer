@@ -1,4 +1,0 @@
-[submodule "deck.gl-raster"]
-	path = deck.gl-raster
-	url = https://github.com/maxrjones/deck.gl-raster.git
-	branch = develop

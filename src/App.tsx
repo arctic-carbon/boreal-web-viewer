@@ -16,7 +16,7 @@ import proj4 from "proj4";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { MapLayerMouseEvent, MapRef } from "react-map-gl/maplibre";
 import { Map as MaplibreMap, Popup, useControl } from "react-map-gl/maplibre";
-import colormap from "./colormap";
+import colormap from "./colormap.js";
 
 function DeckGLOverlay(props: DeckProps) {
   const overlay = useControl<MapboxOverlay>(() => new MapboxOverlay(props));
@@ -133,7 +133,9 @@ function padRows(
 ): Uint16Array {
   const rowBytes = width * 2;
   const alignedRowBytes = Math.ceil(rowBytes / 4) * 4;
-  if (alignedRowBytes === rowBytes) return data;
+  if (alignedRowBytes === rowBytes) {
+    return data;
+  }
 
   const src = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
   const dst = new Uint8Array(alignedRowBytes * height);
@@ -243,7 +245,9 @@ export default function App() {
 
   const handleMapClick = useCallback(async (e: MapLayerMouseEvent) => {
     const ref = geotiffRef.current;
-    if (!ref) return;
+    if (!ref) {
+      return;
+    }
 
     const { geotiff, toSourceCRS } = ref;
     const [x, y] = toSourceCRS(e.lngLat.lng, e.lngLat.lat);
@@ -275,7 +279,9 @@ export default function App() {
 
   // Validate device capabilities and create colormap texture
   useEffect(() => {
-    if (!device) return;
+    if (!device) {
+      return;
+    }
 
     // Check for r16unorm support (requires EXT_texture_norm16 in WebGL)
     if (!device.features.has("norm16-renderable-webgl")) {

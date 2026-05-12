@@ -39,8 +39,12 @@ function lerp(a: number, b: number, t: number): number {
 }
 
 function sampleViridis(t: number): RGB {
-  if (t <= 0) return VIRIDIS_STOPS[0][1];
-  if (t >= 1) return VIRIDIS_STOPS[VIRIDIS_STOPS.length - 1][1];
+  if (t <= 0) {
+    return VIRIDIS_STOPS[0][1];
+  }
+  if (t >= 1) {
+    return VIRIDIS_STOPS[VIRIDIS_STOPS.length - 1][1];
+  }
 
   for (let i = 0; i < VIRIDIS_STOPS.length - 1; i++) {
     const [t0, c0] = VIRIDIS_STOPS[i];
