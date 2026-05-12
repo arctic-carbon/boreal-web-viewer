@@ -25,11 +25,14 @@ Context for Claude Code when working in this repo.
 - `src/colormap.ts` — viridis lookup texture (256 entries)
 - `src/main.tsx` — React entry
 
-## Running locally
+## Common commands
 
 ```bash
-pnpm install
-pnpm dev          # serves on http://localhost:3000
+pnpm install       # install deps (run once after clone)
+pnpm dev           # dev server on http://localhost:3000
+pnpm build         # production build to dist/
+pnpm check         # biome lint + format check (run before committing)
+pnpm check:fix     # auto-fix lint + format issues
 ```
 
 ## Render pipeline (so you don't reinvent it)
@@ -46,6 +49,26 @@ pnpm dev          # serves on http://localhost:3000
 - **Keep changes proportionate.** Don't sweep refactors into feature work. *But*: if a feature would make `App.tsx` materially worse, extract the smallest cohesive piece — e.g., a `LayerPanel` component, a `useDataSource` hook, a `sources.ts` config module — rather than piling on. The file is already at the size where new features are a good moment to split it.
 - **Run `pnpm check` before declaring a change done.** This runs Biome's combined lint + format check.
 - Pre-commit will run Biome on staged files via husky/lint-staged.
+
+### Commit messages
+
+- Use **Conventional Commits**: `<type>(<optional scope>): <short description>`.
+  Common types: `feat`, `fix`, `docs`, `refactor`, `chore`, `build`, `ci`, `perf`, `style`, `test`.
+- Subject line ≤ 72 characters, imperative mood ("add multi-source selector", not "added" or "adds").
+- Body is optional. Use it only when *why* isn't obvious from the diff.
+- Examples that fit this repo:
+  - `feat(sources): support selecting multiple data layers`
+  - `fix(tiles): preserve no-store cache directive on Firefox`
+  - `refactor: extract LayerPanel from App.tsx`
+  - `chore: bump deck.gl-raster to 0.6.1`
+- Include a `Co-authored-by: Claude <noreply@anthropic.com>` trailer on commits Claude writes.
+
+## GitHub interactions
+
+- **Don't open issues or PRs autonomously.** Only do so when explicitly asked.
+- **Don't post progress updates or status comments** on existing issues/PRs unless asked.
+- **Never impersonate the maintainer.** If posting on GitHub on their behalf, sign off with `[Posted by Claude Code on behalf of <name>]`.
+- **Commits are fine to make** when work is complete and the user asks — follow the commit conventions above.
 
 ## In-flight workstreams
 
