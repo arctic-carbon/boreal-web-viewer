@@ -54,8 +54,12 @@ const BASEMAPS = {
 type BasemapKey = keyof typeof BASEMAPS;
 
 // ---- Data source (Int16 COG on source.coop) ----
+// Use the data.source.coop hostname rather than the raw S3 URL: it serves
+// HTTP/2, so the browser can multiplex many range requests over one
+// connection. The raw S3 host is HTTP/1.1 only, which caps parallelism at
+// 6 sockets per origin no matter what `maxRequests` is set to.
 const COG_URL =
-  "https://s3.us-west-2.amazonaws.com/us-west-2.opendata.source.coop/luddaludwig/potential-agc-combustion-ssp585-v0/AGC_final.tif";
+  "https://data.source.coop/luddaludwig/potential-agc-combustion-ssp585-v0/AGC_final.tif";
 
 // Bypass Chrome's single-writer cache lock on range requests to avoid
 // serialized tile fetches (see Chromium disk cache locking behavior).
@@ -69,6 +73,12 @@ const cogPromise = GeoTIFF.fromUrl(COG_URL);
 // The Int16 source has the same value range; negative values are nodata/unused.
 const DATA_MIN = 0;
 const DATA_MAX = 4102;
+
+// Concurrent in-flight tile fetches. Default in deck.gl's TileLayer is 6
+// (historical per-host HTTP/1.1 limit). HTTP/2 + the `cache: "no-store"`
+// override above let us run more in parallel without hitting the Chromium
+// cache-lock serialization. -1 disables the cap.
+const MAX_TILE_REQUESTS = 20;
 
 // ---- Custom shader: rescale r16unorm value to [0,1] using min/max ----
 // r16unorm maps 0..65535 → 0.0..1.0, so rawValue = color.r * 65535.0
@@ -306,6 +316,7 @@ export default function App() {
       id: "agc-layer",
       opacity: dataOpacity,
       geotiff: cog,
+      maxRequests: MAX_TILE_REQUESTS,
       getTileData: trackingGetTileData,
       renderTile: (tileData: TileData): RenderTileResult => ({
         renderPipeline: [
