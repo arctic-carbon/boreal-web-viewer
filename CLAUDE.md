@@ -10,7 +10,7 @@ Context for Claude Code when working in this repo.
 
 - React 19 + Vite 7 + TypeScript
 - `maplibre-gl` for the basemap; `@deck.gl/mapbox` overlay for raster layers
-- `@developmentseed/deck.gl-raster` + `@developmentseed/deck.gl-geotiff` (npm, pinned to `0.6.1`)
+- `@developmentseed/deck.gl-raster` + `@developmentseed/deck.gl-geotiff` (npm, pinned to `0.7.0`)
 - Biome for lint + format (no ESLint/Prettier). Husky pre-commit runs `biome check`.
 - pnpm 10
 

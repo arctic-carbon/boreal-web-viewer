@@ -16,17 +16,17 @@
   },
   "dependencies": {
     "@chunkd/source-http": "^11.2.0",
-    "@deck.gl/core": "^9.2.10",
-    "@deck.gl/extensions": "^9.2.11",
-    "@deck.gl/geo-layers": "^9.2.10",
-    "@deck.gl/layers": "^9.2.10",
-    "@deck.gl/mapbox": "^9.2.10",
-    "@deck.gl/mesh-layers": "^9.2.10",
-    "@developmentseed/deck.gl-geotiff": "0.6.1",
-    "@developmentseed/deck.gl-raster": "0.6.1",
-    "@developmentseed/geotiff": "0.6.1",
-    "@luma.gl/core": "9.2.6",
-    "@luma.gl/shadertools": "9.2.6",
+    "@deck.gl/core": "^9.3.2",
+    "@deck.gl/extensions": "^9.3.2",
+    "@deck.gl/geo-layers": "^9.3.2",
+    "@deck.gl/layers": "^9.3.2",
+    "@deck.gl/mapbox": "^9.3.2",
+    "@deck.gl/mesh-layers": "^9.3.2",
+    "@developmentseed/deck.gl-geotiff": "0.7.0",
+    "@developmentseed/deck.gl-raster": "0.7.0",
+    "@developmentseed/geotiff": "0.7.0",
+    "@luma.gl/core": "9.3.3",
+    "@luma.gl/shadertools": "9.3.3",
     "@types/proj4": "^2.19.0",
     "lerc": "^4.1.0",
     "maplibre-gl": "^5.19.0",
@@ -45,8 +45,8 @@
     "vite": "^7.3.1"
   },
   "overrides": {
-    "@luma.gl/core": "9.2.6",
-    "@luma.gl/shadertools": "9.2.6"
+    "@luma.gl/core": "9.3.3",
+    "@luma.gl/shadertools": "9.3.3"
   },
   "lint-staged": {
     "*": "biome check --no-errors-on-unmatched --files-ignore-unknown=true"

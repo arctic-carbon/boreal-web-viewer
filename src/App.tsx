@@ -2,10 +2,11 @@ import { SourceHttp } from "@chunkd/source-http";
 import type { DeckProps } from "@deck.gl/core";
 import { MapboxOverlay } from "@deck.gl/mapbox";
 import { COGLayer } from "@developmentseed/deck.gl-geotiff";
-import type { RasterModule } from "@developmentseed/deck.gl-raster";
+import type { RenderTileResult } from "@developmentseed/deck.gl-raster";
 import {
   Colormap,
   CreateTexture,
+  createColormapTexture,
 } from "@developmentseed/deck.gl-raster/gpu-modules";
 import type { Overview } from "@developmentseed/geotiff";
 import { GeoTIFF } from "@developmentseed/geotiff";
@@ -291,18 +292,11 @@ export default function App() {
       return;
     }
 
-    const texture = device.createTexture({
-      data: colormap.data,
-      width: colormap.width,
-      height: colormap.height,
-      format: "rgba8unorm",
-      sampler: {
-        addressModeU: "clamp-to-edge",
-        addressModeV: "clamp-to-edge",
-      },
-    });
-
-    setColormapTexture(texture);
+    // Colormap module in 0.7.0 expects a 2D-array texture (one layer per
+    // colormap); `createColormapTexture` packs an ImageData row-per-layer.
+    // Our `colormap` ImageData has height 1, so the result has a single
+    // layer at index 0.
+    setColormapTexture(createColormapTexture(device, colormap));
   }, [device]);
 
   const layers = [];
@@ -313,26 +307,35 @@ export default function App() {
       opacity: dataOpacity,
       geotiff: cog,
       getTileData: trackingGetTileData,
-      renderTile: (tileData: TileData): RasterModule[] => [
-        {
-          module: CreateTexture,
-          props: { textureName: tileData.texture },
-        },
-        {
-          module: Rescale,
-          props: { rangeMin, rangeMax },
-        },
-        {
-          module: Colormap,
-          props: { colormapTexture },
-        },
-        {
-          module: SetAlpha1,
-        },
-      ],
+      renderTile: (tileData: TileData): RenderTileResult => ({
+        renderPipeline: [
+          {
+            module: CreateTexture,
+            props: { textureName: tileData.texture },
+          },
+          {
+            module: Rescale,
+            props: { rangeMin, rangeMax },
+          },
+          {
+            module: Colormap,
+            props: { colormapTexture, colormapIndex: 0 },
+          },
+          {
+            module: SetAlpha1,
+          },
+        ],
+      }),
       onGeoTIFFLoad: (tiff, options) => {
         setMetadataLoaded(true);
-        const converter = proj4("EPSG:4326", options.projection);
+        // The parsed ProjectionDefinition from @developmentseed/proj is
+        // runtime-compatible with proj4.Proj, but its type lacks the
+        // forward/inverse methods that proj4's ProjectionDefinition type
+        // declares (those are attached during Proj construction).
+        const sourceProj = new proj4.Proj(
+          options.projection as unknown as proj4.ProjectionDefinition,
+        );
+        const converter = proj4("EPSG:4326", sourceProj);
         geotiffRef.current = {
           geotiff: tiff,
           toSourceCRS: (lng, lat) =>
