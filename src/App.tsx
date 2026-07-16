@@ -59,7 +59,7 @@ type BasemapKey = keyof typeof BASEMAPS;
 // connection. The raw S3 host is HTTP/1.1 only, which caps parallelism at
 // 6 sockets per origin no matter what `maxRequests` is set to.
 const COG_URL =
-  "https://data.source.coop/luddaludwig/potential-agc-combustion-ssp585-v0/AGC_final.tif";
+  "https://data.source.coop/luddaludwig/boreal-fire-carbon/AGC_ssp585.tif";
 
 // Bypass Chrome's single-writer cache lock on range requests to avoid
 // serialized tile fetches (see Chromium disk cache locking behavior).
