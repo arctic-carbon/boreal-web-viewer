@@ -72,7 +72,7 @@ const cogPromise = GeoTIFF.fromUrl(COG_URL);
 // ---- Data range (from gdalinfo: Min=0, Max=4102 for the unsigned version) ----
 // The Int16 source has the same value range; negative values are nodata/unused.
 const DATA_MIN = 0;
-const DATA_MAX = 4102;
+const DATA_MAX = 3295;
 
 // Concurrent in-flight tile fetches. Default in deck.gl's TileLayer is 6
 // (historical per-host HTTP/1.1 limit). HTTP/2 + the `cache: "no-store"`
