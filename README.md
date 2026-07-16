@@ -8,7 +8,9 @@ https://arctic-carbon.github.io/boreal-web-viewer/
 
 ## Data Layers
 
-- **Potential Above-Ground Combustion** — [Potential AGC in Boreal and Arctic North America for SSP585](https://source.coop/luddaludwig/potential-agc-combustion-ssp585-v0) (note: this is not the final data product)
+High resolution maps of potential fire risk, carbon losses, and permafrost vulnerability to wildfire. These layers can be accessed at https://source.coop/luddaludwig/boreal-fire-carbon
+
+- **Potential Above-Ground Combustion** — [Potential AGC in Boreal and Arctic North America for SSP585](https://source.coop/luddaludwig/boreal-fire-carbon/AGC_ssp58.tif) (note: this is not the final data product)
 
 Additional data layers will be added over time.
 
