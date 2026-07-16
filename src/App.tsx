@@ -679,7 +679,7 @@ export default function App() {
           <p style={{ margin: 0, fontSize: "11px", color: "#999" }}>
             Data:{" "}
             <a
-              href="https://source.coop/luddaludwig/potential-agc-combustion-ssp585-v0"
+              href="https://source.coop/luddaludwig/boreal-fire-carbon"
               target="_blank"
               rel="noopener noreferrer"
               style={{ color: "#666" }}
