@@ -374,8 +374,8 @@ export default function App() {
         }
       },
       onViewportLoad: (tiles) => {
-        let min = Number.POSITIVE_INFINITY;
-        let max = Number.NEGATIVE_INFINITY;
+        const hist = new Uint32Array(65536);
+        let total = 0;
         for (const tile of tiles) {
           const d = tile.data as TileData | null | undefined;
           if (!d) {
@@ -385,15 +385,31 @@ export default function App() {
             if (v === 0) {
               continue;
             } // nodata
-            if (v < min) {
-              min = v;
-            }
-            if (v > max) {
-              max = v;
-            }
+            hist[v]++;
+            total++;
           }
         }
-        if (Number.isFinite(min) && Number.isFinite(max)) {
+        if (total === 0) {
+          return;
+        }
+        const p02 = total * 0.02;
+        const p98 = total * 0.98;
+        let min = 1;
+        let max = 65535;
+        let cumulative = 0;
+        let minSet = false;
+        for (let i = 1; i < 65536; i++) {
+          cumulative += hist[i];
+          if (!minSet && cumulative >= p02) {
+            min = i;
+            minSet = true;
+          }
+          if (cumulative >= p98) {
+            max = i;
+            break;
+          }
+        }
+        if (min < max) {
           setRangeMin(min);
           setRangeMax(max);
         }
