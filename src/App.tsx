@@ -9,7 +9,7 @@ import {
 } from "@developmentseed/deck.gl-raster/gpu-modules";
 import type { ShaderModule } from "@luma.gl/shadertools";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { MapRef } from "react-map-gl/maplibre";
 import { Map as MaplibreMap, Popup, useControl } from "react-map-gl/maplibre";
 import { LayerPanel } from "./components/LayerPanel.js";
@@ -106,6 +106,55 @@ const SetAlpha1 = {
   },
 } as const satisfies ShaderModule;
 
+type GeoTIFFLoadHandler = ReturnType<typeof useLayerState>["handleGeoTIFFLoad"];
+
+function buildCOGLayer(
+  id: string,
+  state: ReturnType<typeof useLayerState>,
+  basemap: BasemapKey,
+  onGeoTIFFLoad?: GeoTIFFLoadHandler,
+): COGLayer<TileData> | null {
+  if (!state.colormapTexture || !state.selected.url) {
+    return null;
+  }
+  const colormapTexture = state.colormapTexture;
+  return new COGLayer<TileData>({
+    id,
+    opacity: state.dataOpacity,
+    geotiff: state.selected.url,
+    maxRequests: MAX_TILE_REQUESTS,
+    getTileData: state.trackingGetTileData,
+    renderTile: (tileData: TileData): RenderTileResult => ({
+      renderPipeline: [
+        {
+          module: CreateTexture,
+          props: { textureName: tileData.texture },
+        },
+        {
+          module: Rescale,
+          props: {
+            rangeMin: state.rangeMin,
+            rangeMax: state.rangeMax,
+          },
+        },
+        {
+          module: Colormap,
+          props: {
+            colormapTexture,
+            colormapIndex: 0,
+          },
+        },
+        {
+          module: SetAlpha1,
+        },
+      ],
+    }),
+    onGeoTIFFLoad: onGeoTIFFLoad ?? state.handleGeoTIFFLoad,
+    onViewportLoad: state.handleViewportLoad,
+    ...(basemap === "dark" && { beforeId: "boundary_country_outline" }),
+  });
+}
+
 export default function App() {
   const mapRef = useRef<MapRef>(null);
   const hasInitialFitRef = useRef(false);
@@ -118,9 +167,11 @@ export default function App() {
     pitch: 0 as number,
     bearing: 0 as number,
   });
+  const [dividerX, setDividerX] = useState(() => window.innerWidth / 2);
+  const isDraggingRef = useRef(false);
 
   const leftState = useLayerState();
-  const layers: COGLayer<TileData>[] = [];
+  const rightState = useLayerState(1);
 
   // Inject @keyframes spin CSS (project uses no CSS files)
   useEffect(() => {
@@ -132,58 +183,89 @@ export default function App() {
     };
   }, []);
 
-  if (leftState.colormapTexture && leftState.selected.url) {
-    const cogLayer = new COGLayer<TileData>({
-      id: "cog-layer",
-      opacity: leftState.dataOpacity,
-      geotiff: leftState.selected.url,
-      maxRequests: MAX_TILE_REQUESTS,
-      getTileData: leftState.trackingGetTileData,
-      renderTile: (tileData: TileData): RenderTileResult => ({
-        renderPipeline: [
-          {
-            module: CreateTexture,
-            props: { textureName: tileData.texture },
-          },
-          {
-            module: Rescale,
-            props: {
-              rangeMin: leftState.rangeMin,
-              rangeMax: leftState.rangeMax,
-            },
-          },
-          {
-            module: Colormap,
-            // colormapTexture is non-null here: guarded by outer if(leftState.colormapTexture)
-            props: {
-              colormapTexture: leftState.colormapTexture!,
-              colormapIndex: 0,
-            },
-          },
-          {
-            module: SetAlpha1,
-          },
-        ],
-      }),
-      onGeoTIFFLoad: (tiff, options) => {
-        leftState.handleGeoTIFFLoad(tiff, options);
-        if (!hasInitialFitRef.current) {
-          hasInitialFitRef.current = true;
-          const { west, south, east, north } = options.geographicBounds;
-          mapRef.current?.fitBounds(
-            [
-              [west, south],
-              [east, north],
-            ],
-            { padding: 40, duration: 1000 },
-          );
-        }
-      },
-      onViewportLoad: leftState.handleViewportLoad,
-      ...(basemap === "dark" && { beforeId: "boundary_country_outline" }),
-    });
-    layers.push(cogLayer);
-  }
+  // Reset divider to center when entering compare mode
+  useEffect(() => {
+    if (mode === "compare") {
+      setDividerX(window.innerWidth / 2);
+    }
+  }, [mode]);
+
+  const handleDividerMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isDraggingRef.current = true;
+
+    const onMouseMove = (ev: MouseEvent) => {
+      if (!isDraggingRef.current) {
+        return;
+      }
+      setDividerX(Math.max(50, Math.min(window.innerWidth - 50, ev.clientX)));
+    };
+    const onMouseUp = () => {
+      isDraggingRef.current = false;
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    };
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  }, []);
+
+  const handleDividerTouchStart = useCallback((_e: React.TouchEvent) => {
+    isDraggingRef.current = true;
+
+    const onTouchMove = (ev: TouchEvent) => {
+      if (!isDraggingRef.current || !ev.touches[0]) {
+        return;
+      }
+      setDividerX(
+        Math.max(50, Math.min(window.innerWidth - 50, ev.touches[0].clientX)),
+      );
+    };
+    const onTouchEnd = () => {
+      isDraggingRef.current = false;
+      document.removeEventListener("touchmove", onTouchMove);
+      document.removeEventListener("touchend", onTouchEnd);
+    };
+    document.addEventListener("touchmove", onTouchMove);
+    document.addEventListener("touchend", onTouchEnd);
+  }, []);
+
+  const leftLayer = buildCOGLayer(
+    "cog-layer-left",
+    leftState,
+    basemap,
+    (tiff, options) => {
+      leftState.handleGeoTIFFLoad(tiff, options);
+      if (!hasInitialFitRef.current) {
+        hasInitialFitRef.current = true;
+        const { west, south, east, north } = options.geographicBounds;
+        mapRef.current?.fitBounds(
+          [
+            [west, south],
+            [east, north],
+          ],
+          { padding: 40, duration: 1000 },
+        );
+      }
+    },
+  );
+
+  const rightLayer =
+    mode === "compare"
+      ? buildCOGLayer("cog-layer-right", rightState, basemap)
+      : null;
+
+  const matchScaleEnabled =
+    leftState.selected.units === rightState.selected.units;
+
+  const handleMatchScale = useCallback(() => {
+    rightState.setRangeMin(leftState.rangeMin);
+    rightState.setRangeMax(leftState.rangeMax);
+  }, [rightState, leftState.rangeMin, leftState.rangeMax]);
+
+  const toggleBasemap = useCallback(
+    () => setBasemap((b) => (b === "dark" ? "satellite" : "dark")),
+    [],
+  );
 
   if (leftState.deviceError) {
     return (
@@ -208,17 +290,22 @@ export default function App() {
     );
   }
 
+  const mapStyle = BASEMAPS[basemap] as string;
+  const isCompare = mode === "compare";
+
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
+      {/* Left map — always full screen, renders underneath */}
       <MaplibreMap
         ref={mapRef}
         viewState={viewState}
         onMove={(e) => setViewState(e.viewState)}
-        mapStyle={BASEMAPS[basemap] as string}
+        mapStyle={mapStyle}
         onClick={leftState.handleMapClick}
+        style={{ position: "absolute", inset: 0 }}
       >
         <DeckGLOverlay
-          layers={layers}
+          layers={leftLayer ? [leftLayer] : []}
           // @ts-expect-error interleaved is valid for MapboxOverlay but missing from DeckProps
           interleaved
           onDeviceInitialized={leftState.setDevice}
@@ -254,14 +341,118 @@ export default function App() {
         )}
       </MaplibreMap>
 
-      {/* Loading spinner */}
+      {/* Right map — clipped to the right of the divider, compare mode only */}
+      {isCompare && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            clipPath: `inset(0 0 0 ${dividerX}px)`,
+          }}
+        >
+          <MaplibreMap
+            viewState={viewState}
+            onMove={(e) => setViewState(e.viewState)}
+            mapStyle={mapStyle}
+            onClick={rightState.handleMapClick}
+            style={{ position: "absolute", inset: 0 }}
+          >
+            <DeckGLOverlay
+              layers={rightLayer ? [rightLayer] : []}
+              // @ts-expect-error interleaved is valid for MapboxOverlay but missing from DeckProps
+              interleaved
+              onDeviceInitialized={rightState.setDevice}
+            />
+            {rightState.clickInfo && (
+              <Popup
+                longitude={rightState.clickInfo.lng}
+                latitude={rightState.clickInfo.lat}
+                closeOnClick={false}
+                onClose={() => rightState.setClickInfo(null)}
+                anchor="bottom"
+              >
+                <div style={{ lineHeight: 1.5 }}>
+                  <div>
+                    <span style={{ opacity: 0.6 }}>Value</span>{" "}
+                    <strong>
+                      {(
+                        rightState.clickInfo.value *
+                        rightState.selected.displayScale
+                      ).toFixed(
+                        rightState.selected.displayScale < 1 ? 2 : 0,
+                      )}{" "}
+                      {rightState.selected.units}
+                    </strong>
+                  </div>
+                  <div>
+                    <span style={{ opacity: 0.6 }}>Lat</span>{" "}
+                    {rightState.clickInfo.lat.toFixed(5)}
+                  </div>
+                  <div>
+                    <span style={{ opacity: 0.6 }}>Lon</span>{" "}
+                    {rightState.clickInfo.lng.toFixed(5)}
+                  </div>
+                </div>
+              </Popup>
+            )}
+          </MaplibreMap>
+        </div>
+      )}
+
+      {/* Draggable divider */}
+      {isCompare && (
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            bottom: 0,
+            left: `${dividerX}px`,
+            width: "2px",
+            background: "rgba(255,255,255,0.8)",
+            zIndex: 500,
+            cursor: "col-resize",
+            transform: "translateX(-50%)",
+          }}
+        >
+          {/* Drag handle */}
+          <button
+            type="button"
+            aria-label="Drag to adjust split"
+            onMouseDown={handleDividerMouseDown}
+            onTouchStart={handleDividerTouchStart}
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              width: "36px",
+              height: "36px",
+              borderRadius: "50%",
+              background: "white",
+              border: "none",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+              cursor: "col-resize",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "14px",
+              color: "#666",
+              padding: 0,
+            }}
+          >
+            &#8596;
+          </button>
+        </div>
+      )}
+
+      {/* Left loading spinner */}
       {(leftState.tilesLoading ||
         (leftState.colormapTexture && !leftState.metadataLoaded)) && (
         <div
           style={{
             position: "absolute",
             top: "20px",
-            left: "50%",
+            left: isCompare ? "25%" : "50%",
             transform: "translateX(-50%)",
             zIndex: 1000,
             pointerEvents: "none",
@@ -289,13 +480,64 @@ export default function App() {
         </div>
       )}
 
+      {/* Right loading spinner — compare mode only */}
+      {isCompare &&
+        (rightState.tilesLoading ||
+          (rightState.colormapTexture && !rightState.metadataLoaded)) && (
+          <div
+            style={{
+              position: "absolute",
+              top: "20px",
+              left: "75%",
+              transform: "translateX(-50%)",
+              zIndex: 1000,
+              pointerEvents: "none",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              background: "rgba(0, 0, 0, 0.7)",
+              color: "#fff",
+              padding: "8px 14px",
+              borderRadius: "20px",
+              fontSize: "13px",
+            }}
+          >
+            <div
+              style={{
+                width: "14px",
+                height: "14px",
+                border: "2px solid rgba(255,255,255,0.3)",
+                borderTopColor: "#fff",
+                borderRadius: "50%",
+                animation: "spin 0.8s linear infinite",
+              }}
+            />
+            {!rightState.metadataLoaded
+              ? "Loading metadata…"
+              : "Loading tiles…"}
+          </div>
+        )}
+
+      {/* Left panel */}
       <LayerPanel
         state={leftState}
         basemap={basemap}
-        onToggleBasemap={() =>
-          setBasemap((b) => (b === "dark" ? "satellite" : "dark"))
-        }
+        onToggleBasemap={toggleBasemap}
+        side={isCompare ? "left" : undefined}
       />
+
+      {/* Right panel — compare mode only */}
+      {isCompare && (
+        <LayerPanel
+          state={rightState}
+          basemap={basemap}
+          onToggleBasemap={toggleBasemap}
+          side="right"
+          compareMode
+          onMatchScale={handleMatchScale}
+          matchScaleEnabled={matchScaleEnabled}
+        />
+      )}
 
       {/* Mode toggle */}
       <div
