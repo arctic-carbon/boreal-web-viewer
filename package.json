@@ -1,5 +1,5 @@
 {
-  "name": "agc-viz",
+  "name": "boreal-fire-carbon-viz",
   "private": true,
   "type": "module",
   "scripts": {
@@ -15,6 +15,7 @@
     "prepare": "husky"
   },
   "dependencies": {
+    "@chakra-ui/react": "^3.36.0",
     "@chunkd/source-http": "^11.2.0",
     "@deck.gl/core": "^9.3.2",
     "@deck.gl/extensions": "^9.3.2",
@@ -22,6 +23,7 @@
     "@deck.gl/layers": "^9.3.2",
     "@deck.gl/mapbox": "^9.3.2",
     "@deck.gl/mesh-layers": "^9.3.2",
+    "deck.gl-raster-examples-shared": "workspace:*",
     "@developmentseed/deck.gl-geotiff": "0.7.0",
     "@developmentseed/deck.gl-raster": "0.7.0",
     "@developmentseed/geotiff": "0.7.0",

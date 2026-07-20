@@ -8,8 +8,7 @@ import {
   CreateTexture,
   createColormapTexture,
 } from "@developmentseed/deck.gl-raster/gpu-modules";
-import type { Overview } from "@developmentseed/geotiff";
-import { GeoTIFF } from "@developmentseed/geotiff";
+import type { GeoTIFF, Overview } from "@developmentseed/geotiff";
 import type { Device, Texture } from "@luma.gl/core";
 import type { ShaderModule } from "@luma.gl/shadertools";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -58,8 +57,20 @@ type BasemapKey = keyof typeof BASEMAPS;
 // HTTP/2, so the browser can multiplex many range requests over one
 // connection. The raw S3 host is HTTP/1.1 only, which caps parallelism at
 // 6 sockets per origin no matter what `maxRequests` is set to.
-const COG_URL =
-  "https://data.source.coop/luddaludwig/boreal-fire-carbon/AGC_ssp585.tif";
+
+const COG_OPTIONS: { title: string; url: string }[] = [
+  {
+    title: "Above-ground combustion SSP-585",
+    url: "https://data.source.coop/luddaludwig/boreal-fire-carbon/AGC_ssp585.tif",
+  },
+  {
+    title: "Below-ground combustion SSP-585",
+    url: "https://data.source.coop/luddaludwig/boreal-fire-carbon/BGC_ssp585.tif",
+  },
+];
+
+// const COG_URL =
+//   "https://data.source.coop/luddaludwig/boreal-fire-carbon/AGC_ssp585.tif";
 
 // Bypass Chrome's single-writer cache lock on range requests to avoid
 // serialized tile fetches (see Chromium disk cache locking behavior).
@@ -67,7 +78,7 @@ const COG_URL =
 SourceHttp.fetch = (input, init) =>
   fetch(input, { ...init, cache: "no-store" });
 
-const cogPromise = GeoTIFF.fromUrl(COG_URL);
+// const cogPromise = GeoTIFF.fromUrl(COG_URL);
 
 // ---- Data range (from gdalinfo: Min=90, Max=3290 for the unsigned version) ----
 // The Int16 source has the same value range; negative values are nodata/unused.
@@ -191,6 +202,9 @@ async function getTileData(
 
 export default function App() {
   const mapRef = useRef<MapRef>(null);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const layers = [];
+  const selected = COG_OPTIONS[selectedIndex];
   const [device, setDevice] = useState<Device | null>(null);
   const [deviceError, setDeviceError] = useState<string | null>(null);
   const [colormapTexture, setColormapTexture] = useState<Texture | null>(null);
@@ -198,7 +212,7 @@ export default function App() {
   const [rangeMax, setRangeMax] = useState(DATA_MAX);
   const [basemap, setBasemap] = useState<BasemapKey>("dark");
   const [dataOpacity, setDataOpacity] = useState(1);
-  const [cog, setCog] = useState<GeoTIFF | null>(null);
+  // const [selected.url, setCog] = useState<GeoTIFF | null>(null);
   const [metadataLoaded, setMetadataLoaded] = useState(false);
   const [tilesLoading, setTilesLoading] = useState(false);
   const loadingCountRef = useRef(0);
@@ -241,9 +255,9 @@ export default function App() {
   }, []);
 
   // Inject @keyframes spin CSS (project uses no CSS files)
-  useEffect(() => {
-    cogPromise.then(setCog);
-  }, []);
+  // useEffect(() => {
+  //   cogPromise.then(setCog);
+  // }, []);
 
   useEffect(() => {
     const style = document.createElement("style");
@@ -309,13 +323,12 @@ export default function App() {
     setColormapTexture(createColormapTexture(device, colormap));
   }, [device]);
 
-  const layers = [];
-
-  if (colormapTexture && cog) {
+  if (colormapTexture && selected.url) {
     const cogLayer = new COGLayer<TileData>({
-      id: "agc-layer",
+      id: "cog-layer",
       opacity: dataOpacity,
-      geotiff: cog,
+      // geotiff: cog,
+      geotiff: selected.url,
       maxRequests: MAX_TILE_REQUESTS,
       getTileData: trackingGetTileData,
       renderTile: (tileData: TileData): RenderTileResult => ({
@@ -525,7 +538,7 @@ export default function App() {
           >
             <div>
               <h3 style={{ margin: "0 0 4px 0", fontSize: "16px" }}>
-                Potential Above-Ground Combustion
+                Potential Wildfire Carbon Losses
               </h3>
               <p
                 style={{
@@ -534,7 +547,7 @@ export default function App() {
                   color: "#666",
                 }}
               >
-                Boreal and Arctic North America — SSP585
+                Scenarios: historical, SSP-126, or SSP-585
               </p>
             </div>
             <button
@@ -554,7 +567,28 @@ export default function App() {
               &#10005;
             </button>
           </div>
-
+          {/* drop down menu*/}
+          <div>
+            <p
+              style={{
+                margin: "0 0 12px 0",
+                fontSize: "12px",
+                color: "#666",
+              }}
+            >
+              Select layer
+            </p>
+            <select
+              value={selectedIndex}
+              onChange={(e) => setSelectedIndex(Number(e.target.value))}
+            >
+              {COG_OPTIONS.map((opt, i) => (
+                <option key={opt.url} value={i}>
+                  {opt.title}
+                </option>
+              ))}
+            </select>
+          </div>
           {/* Min slider */}
           <div style={{ marginBottom: "8px" }}>
             <label
