@@ -12,9 +12,9 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState } from "react";
 import type { MapRef } from "react-map-gl/maplibre";
 import { Map as MaplibreMap, Popup, useControl } from "react-map-gl/maplibre";
+import { LayerPanel } from "./components/LayerPanel.js";
 import type { TileData } from "./hooks/useLayerState.js";
 import { useLayerState } from "./hooks/useLayerState.js";
-import { SOURCES } from "./sources.js";
 
 function DeckGLOverlay(props: DeckProps) {
   const overlay = useControl<MapboxOverlay>(() => new MapboxOverlay(props));
@@ -105,10 +105,6 @@ const SetAlpha1 = {
     `,
   },
 } as const satisfies ShaderModule;
-
-function fmtVal(raw: number, src: (typeof SOURCES)[number]): string {
-  return (raw * src.displayScale).toFixed(src.displayScale < 1 ? 2 : 0);
-}
 
 export default function App() {
   const mapRef = useRef<MapRef>(null);
@@ -236,7 +232,9 @@ export default function App() {
               <div>
                 <span style={{ opacity: 0.6 }}>Value</span>{" "}
                 <strong>
-                  {fmtVal(leftState.clickInfo.value, leftState.selected)}{" "}
+                  {(
+                    leftState.clickInfo.value * leftState.selected.displayScale
+                  ).toFixed(leftState.selected.displayScale < 1 ? 2 : 0)}{" "}
                   {leftState.selected.units}
                 </strong>
               </div>
@@ -288,282 +286,13 @@ export default function App() {
         </div>
       )}
 
-      {/* Panel toggle button (visible when collapsed) */}
-      {!leftState.panelOpen && (
-        <button
-          type="button"
-          onClick={() => leftState.setPanelOpen(true)}
-          style={{
-            position: "absolute",
-            top: "20px",
-            left: "20px",
-            zIndex: 1000,
-            width: "36px",
-            height: "36px",
-            borderRadius: "8px",
-            border: "none",
-            background: "white",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-            cursor: "pointer",
-            fontSize: "18px",
-            lineHeight: 1,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-          aria-label="Open settings"
-        >
-          &#9776;
-        </button>
-      )}
-
-      {/* Info Panel */}
-      {leftState.panelOpen && (
-        <div
-          style={{
-            position: "absolute",
-            top: "20px",
-            left: "20px",
-            zIndex: 1000,
-            background: "white",
-            padding: "16px",
-            borderRadius: "8px",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-            maxWidth: "320px",
-            width: "calc(100vw - 40px)",
-            boxSizing: "border-box",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "flex-start",
-            }}
-          >
-            <div>
-              <h3 style={{ margin: "0 0 4px 0", fontSize: "16px" }}>
-                Potential Wildfire Carbon Losses
-              </h3>
-              <p
-                style={{
-                  margin: "0 0 12px 0",
-                  fontSize: "12px",
-                  color: "#666",
-                }}
-              >
-                Scenarios: historical, SSP-126, or SSP-585
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => leftState.setPanelOpen(false)}
-              style={{
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                fontSize: "18px",
-                lineHeight: 1,
-                padding: "0 0 0 8px",
-                color: "#999",
-              }}
-              aria-label="Close settings"
-            >
-              &#10005;
-            </button>
-          </div>
-          {/* drop down menu*/}
-          <div>
-            <p
-              style={{
-                margin: "0 0 12px 0",
-                fontSize: "12px",
-                color: "#666",
-              }}
-            >
-              Select layer
-            </p>
-            <select
-              value={leftState.selectedIndex}
-              onChange={(e) =>
-                leftState.setSelectedIndex(Number(e.target.value))
-              }
-              style={{
-                width: "100%",
-                padding: "6px 12px",
-                fontSize: "12px",
-                background: "#f0f0f0",
-                border: "1px solid #ccc",
-                borderRadius: "4px",
-                cursor: "pointer",
-                marginBottom: "12px",
-              }}
-            >
-              {SOURCES.map((src, i) => (
-                <option key={src.id} value={i}>
-                  {src.title}
-                </option>
-              ))}
-            </select>
-          </div>
-          {/* Min slider */}
-          <div style={{ marginBottom: "8px" }}>
-            <label
-              style={{
-                display: "block",
-                fontSize: "12px",
-                color: "#666",
-                marginBottom: "2px",
-              }}
-            >
-              Min: {fmtVal(leftState.rangeMin, leftState.selected)}{" "}
-              {leftState.selected.units}
-              <input
-                type="range"
-                min={leftState.selected.dataMin}
-                max={leftState.selected.dataMax}
-                step={1}
-                value={leftState.rangeMin}
-                onChange={(e) =>
-                  leftState.setRangeMin(
-                    Math.min(
-                      parseFloat(e.target.value),
-                      leftState.rangeMax - 1,
-                    ),
-                  )
-                }
-                style={{ width: "100%", cursor: "pointer" }}
-              />
-            </label>
-          </div>
-
-          {/* Max slider */}
-          <div style={{ marginBottom: "12px" }}>
-            <label
-              style={{
-                display: "block",
-                fontSize: "12px",
-                color: "#666",
-                marginBottom: "2px",
-              }}
-            >
-              Max: {fmtVal(leftState.rangeMax, leftState.selected)}{" "}
-              {leftState.selected.units}
-              <input
-                type="range"
-                min={leftState.selected.dataMin}
-                max={leftState.selected.dataMax}
-                step={1}
-                value={leftState.rangeMax}
-                onChange={(e) =>
-                  leftState.setRangeMax(
-                    Math.max(
-                      parseFloat(e.target.value),
-                      leftState.rangeMin + 1,
-                    ),
-                  )
-                }
-                style={{ width: "100%", cursor: "pointer" }}
-              />
-            </label>
-          </div>
-
-          {/* Basemap toggle */}
-          <div style={{ marginBottom: "12px" }}>
-            <button
-              type="button"
-              onClick={() =>
-                setBasemap((b) => (b === "dark" ? "satellite" : "dark"))
-              }
-              style={{
-                width: "100%",
-                padding: "6px 12px",
-                fontSize: "12px",
-                cursor: "pointer",
-                background: "#f0f0f0",
-                border: "1px solid #ccc",
-                borderRadius: "4px",
-              }}
-            >
-              {basemap === "dark"
-                ? "Switch to satellite basemap"
-                : "Switch to dark basemap"}
-            </button>
-          </div>
-
-          {/* Data opacity slider */}
-          <div style={{ marginBottom: "12px" }}>
-            <label
-              style={{
-                display: "block",
-                fontSize: "12px",
-                color: "#666",
-                marginBottom: "2px",
-              }}
-            >
-              Data Opacity: {Math.round(leftState.dataOpacity * 100)}%
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.01}
-                value={leftState.dataOpacity}
-                onChange={(e) =>
-                  leftState.setDataOpacity(parseFloat(e.target.value))
-                }
-                style={{ width: "100%", cursor: "pointer" }}
-              />
-            </label>
-          </div>
-
-          {/* Colormap gradient preview */}
-          <div
-            style={{
-              height: "12px",
-              borderRadius: "2px",
-              background:
-                "linear-gradient(to right, #440154, #3b528b, #21918c, #5ec962, #b5de2b, #fde725)",
-              marginBottom: "4px",
-            }}
-          />
-          <p
-            style={{
-              margin: "0 0 12px 0",
-              fontSize: "11px",
-              color: "#999",
-              textAlign: "center",
-            }}
-          >
-            {leftState.selected.units}
-          </p>
-
-          <p style={{ margin: 0, fontSize: "11px", color: "#999" }}>
-            Data:{" "}
-            <a
-              href="https://source.coop/luddaludwig/boreal-fire-carbon"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ color: "#666" }}
-            >
-              source.coop
-            </a>
-            {" | "}
-            Rendered with{" "}
-            <a
-              href="https://github.com/developmentseed/deck.gl-raster"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                color: "#666",
-                fontFamily: "monospace",
-                fontSize: "10px",
-              }}
-            >
-              deck.gl-raster
-            </a>
-          </p>
-        </div>
-      )}
+      <LayerPanel
+        state={leftState}
+        basemap={basemap}
+        onToggleBasemap={() =>
+          setBasemap((b) => (b === "dark" ? "satellite" : "dark"))
+        }
+      />
     </div>
   );
 }
