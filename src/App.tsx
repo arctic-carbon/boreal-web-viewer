@@ -202,6 +202,7 @@ export default function App() {
   const [tilesLoading, setTilesLoading] = useState(false);
   const loadingCountRef = useRef(0);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const hasInitialFitRef = useRef(false);
   const [panelOpen, setPanelOpen] = useState(() => window.innerWidth >= 768);
   const [clickInfo, setClickInfo] = useState<{
     lng: number;
@@ -359,14 +360,17 @@ export default function App() {
             converter.forward<[number, number]>([lng, lat], false),
         };
 
-        const { west, south, east, north } = options.geographicBounds;
-        mapRef.current?.fitBounds(
-          [
-            [west, south],
-            [east, north],
-          ],
-          { padding: 40, duration: 1000 },
-        );
+        if (!hasInitialFitRef.current) {
+          hasInitialFitRef.current = true;
+          const { west, south, east, north } = options.geographicBounds;
+          mapRef.current?.fitBounds(
+            [
+              [west, south],
+              [east, north],
+            ],
+            { padding: 40, duration: 1000 },
+          );
+        }
       },
       ...(basemap === "dark" && { beforeId: "boundary_country_outline" }),
     });
