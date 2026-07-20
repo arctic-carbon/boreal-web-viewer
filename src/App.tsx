@@ -8,8 +8,7 @@ import {
   CreateTexture,
   createColormapTexture,
 } from "@developmentseed/deck.gl-raster/gpu-modules";
-import type { Overview } from "@developmentseed/geotiff";
-import { GeoTIFF } from "@developmentseed/geotiff";
+import type { GeoTIFF, Overview } from "@developmentseed/geotiff";
 import type { Device, Texture } from "@luma.gl/core";
 import type { ShaderModule } from "@luma.gl/shadertools";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -18,6 +17,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { MapLayerMouseEvent, MapRef } from "react-map-gl/maplibre";
 import { Map as MaplibreMap, Popup, useControl } from "react-map-gl/maplibre";
 import colormap from "./colormap.js";
+import type { LayerSource } from "./sources.js";
+import { SOURCES } from "./sources.js";
 
 function DeckGLOverlay(props: DeckProps) {
   const overlay = useControl<MapboxOverlay>(() => new MapboxOverlay(props));
@@ -58,21 +59,12 @@ type BasemapKey = keyof typeof BASEMAPS;
 // HTTP/2, so the browser can multiplex many range requests over one
 // connection. The raw S3 host is HTTP/1.1 only, which caps parallelism at
 // 6 sockets per origin no matter what `maxRequests` is set to.
-const COG_URL =
-  "https://data.source.coop/luddaludwig/potential-agc-combustion-ssp585-v0/AGC_final.tif";
 
 // Bypass Chrome's single-writer cache lock on range requests to avoid
 // serialized tile fetches (see Chromium disk cache locking behavior).
 // Scoped to SourceHttp only — does not affect MapLibre or other fetches.
 SourceHttp.fetch = (input, init) =>
   fetch(input, { ...init, cache: "no-store" });
-
-const cogPromise = GeoTIFF.fromUrl(COG_URL);
-
-// ---- Data range (from gdalinfo: Min=0, Max=4102 for the unsigned version) ----
-// The Int16 source has the same value range; negative values are nodata/unused.
-const DATA_MIN = 0;
-const DATA_MAX = 4102;
 
 // Concurrent in-flight tile fetches. Default in deck.gl's TileLayer is 6
 // (historical per-host HTTP/1.1 limit). HTTP/2 + the `cache: "no-store"`
@@ -110,8 +102,8 @@ uniform rescaleUniforms {
     rangeMax: "f32",
   },
   getUniforms: (props: Partial<RescaleProps>) => ({
-    rangeMin: props.rangeMin ?? DATA_MIN,
-    rangeMax: props.rangeMax ?? DATA_MAX,
+    rangeMin: props.rangeMin ?? 0,
+    rangeMax: props.rangeMax ?? 65535,
   }),
 } as const satisfies ShaderModule<RescaleProps>;
 
@@ -130,6 +122,7 @@ type TileData = {
   height: number;
   width: number;
   texture: Texture;
+  rawData: Uint16Array;
 };
 
 /**
@@ -186,23 +179,31 @@ async function getTileData(
     },
   });
 
-  return { texture, height, width };
+  return { texture, height, width, rawData: uint16 };
+}
+
+function fmtVal(raw: number, src: LayerSource): string {
+  return (raw * src.displayScale).toFixed(src.displayScale < 1 ? 2 : 0);
 }
 
 export default function App() {
   const mapRef = useRef<MapRef>(null);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const layers = [];
+  const selected = SOURCES[selectedIndex];
   const [device, setDevice] = useState<Device | null>(null);
   const [deviceError, setDeviceError] = useState<string | null>(null);
   const [colormapTexture, setColormapTexture] = useState<Texture | null>(null);
-  const [rangeMin, setRangeMin] = useState(DATA_MIN);
-  const [rangeMax, setRangeMax] = useState(DATA_MAX);
+  const [rangeMin, setRangeMin] = useState(SOURCES[0].dataMin);
+  const [rangeMax, setRangeMax] = useState(SOURCES[0].dataMax);
   const [basemap, setBasemap] = useState<BasemapKey>("dark");
   const [dataOpacity, setDataOpacity] = useState(1);
-  const [cog, setCog] = useState<GeoTIFF | null>(null);
+  // const [selected.url, setCog] = useState<GeoTIFF | null>(null);
   const [metadataLoaded, setMetadataLoaded] = useState(false);
   const [tilesLoading, setTilesLoading] = useState(false);
   const loadingCountRef = useRef(0);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const hasInitialFitRef = useRef(false);
   const [panelOpen, setPanelOpen] = useState(() => window.innerWidth >= 768);
   const [clickInfo, setClickInfo] = useState<{
     lng: number;
@@ -241,9 +242,9 @@ export default function App() {
   }, []);
 
   // Inject @keyframes spin CSS (project uses no CSS files)
-  useEffect(() => {
-    cogPromise.then(setCog);
-  }, []);
+  // useEffect(() => {
+  //   cogPromise.then(setCog);
+  // }, []);
 
   useEffect(() => {
     const style = document.createElement("style");
@@ -253,6 +254,14 @@ export default function App() {
       document.head.removeChild(style);
     };
   }, []);
+
+  useEffect(() => {
+    const src = SOURCES[selectedIndex];
+    setRangeMin(src.dataMin);
+    setRangeMax(src.dataMax);
+    setMetadataLoaded(false);
+    setClickInfo(null);
+  }, [selectedIndex]);
 
   const handleMapClick = useCallback(async (e: MapLayerMouseEvent) => {
     const ref = geotiffRef.current;
@@ -309,13 +318,12 @@ export default function App() {
     setColormapTexture(createColormapTexture(device, colormap));
   }, [device]);
 
-  const layers = [];
-
-  if (colormapTexture && cog) {
+  if (colormapTexture && selected.url) {
     const cogLayer = new COGLayer<TileData>({
-      id: "agc-layer",
+      id: "cog-layer",
       opacity: dataOpacity,
-      geotiff: cog,
+      // geotiff: cog,
+      geotiff: selected.url,
       maxRequests: MAX_TILE_REQUESTS,
       getTileData: trackingGetTileData,
       renderTile: (tileData: TileData): RenderTileResult => ({
@@ -353,14 +361,58 @@ export default function App() {
             converter.forward<[number, number]>([lng, lat], false),
         };
 
-        const { west, south, east, north } = options.geographicBounds;
-        mapRef.current?.fitBounds(
-          [
-            [west, south],
-            [east, north],
-          ],
-          { padding: 40, duration: 1000 },
-        );
+        if (!hasInitialFitRef.current) {
+          hasInitialFitRef.current = true;
+          const { west, south, east, north } = options.geographicBounds;
+          mapRef.current?.fitBounds(
+            [
+              [west, south],
+              [east, north],
+            ],
+            { padding: 40, duration: 1000 },
+          );
+        }
+      },
+      onViewportLoad: (tiles) => {
+        const hist = new Uint32Array(65536);
+        let total = 0;
+        for (const tile of tiles) {
+          const d = tile.data as TileData | null | undefined;
+          if (!d) {
+            continue;
+          }
+          for (const v of d.rawData) {
+            if (v === 0) {
+              continue;
+            } // nodata
+            hist[v]++;
+            total++;
+          }
+        }
+        if (total === 0) {
+          return;
+        }
+        const p02 = total * 0.02;
+        const p98 = total * 0.98;
+        let min = 1;
+        let max = 65535;
+        let cumulative = 0;
+        let minSet = false;
+        for (let i = 1; i < 65536; i++) {
+          cumulative += hist[i];
+          if (!minSet && cumulative >= p02) {
+            min = i;
+            minSet = true;
+          }
+          if (cumulative >= p98) {
+            max = i;
+            break;
+          }
+        }
+        if (min < max) {
+          setRangeMin(min);
+          setRangeMax(max);
+        }
       },
       ...(basemap === "dark" && { beforeId: "boundary_country_outline" }),
     });
@@ -421,7 +473,9 @@ export default function App() {
             <div style={{ lineHeight: 1.5 }}>
               <div>
                 <span style={{ opacity: 0.6 }}>Value</span>{" "}
-                <strong>{clickInfo.value}</strong>
+                <strong>
+                  {fmtVal(clickInfo.value, selected)} {selected.units}
+                </strong>
               </div>
               <div>
                 <span style={{ opacity: 0.6 }}>Lat</span>{" "}
@@ -525,7 +579,7 @@ export default function App() {
           >
             <div>
               <h3 style={{ margin: "0 0 4px 0", fontSize: "16px" }}>
-                Potential Above-Ground Combustion
+                Potential Wildfire Carbon Losses
               </h3>
               <p
                 style={{
@@ -534,7 +588,7 @@ export default function App() {
                   color: "#666",
                 }}
               >
-                Boreal and Arctic North America — SSP585
+                Scenarios: historical, SSP-126, or SSP-585
               </p>
             </div>
             <button
@@ -554,7 +608,38 @@ export default function App() {
               &#10005;
             </button>
           </div>
-
+          {/* drop down menu*/}
+          <div>
+            <p
+              style={{
+                margin: "0 0 12px 0",
+                fontSize: "12px",
+                color: "#666",
+              }}
+            >
+              Select layer
+            </p>
+            <select
+              value={selectedIndex}
+              onChange={(e) => setSelectedIndex(Number(e.target.value))}
+              style={{
+                width: "100%",
+                padding: "6px 12px",
+                fontSize: "12px",
+                background: "#f0f0f0",
+                border: "1px solid #ccc",
+                borderRadius: "4px",
+                cursor: "pointer",
+                marginBottom: "12px",
+              }}
+            >
+              {SOURCES.map((src, i) => (
+                <option key={src.id} value={i}>
+                  {src.title}
+                </option>
+              ))}
+            </select>
+          </div>
           {/* Min slider */}
           <div style={{ marginBottom: "8px" }}>
             <label
@@ -565,11 +650,11 @@ export default function App() {
                 marginBottom: "2px",
               }}
             >
-              Min: {rangeMin}
+              Min: {fmtVal(rangeMin, selected)} {selected.units}
               <input
                 type="range"
-                min={DATA_MIN}
-                max={DATA_MAX}
+                min={selected.dataMin}
+                max={selected.dataMax}
                 step={1}
                 value={rangeMin}
                 onChange={(e) =>
@@ -592,11 +677,11 @@ export default function App() {
                 marginBottom: "2px",
               }}
             >
-              Max: {rangeMax}
+              Max: {fmtVal(rangeMax, selected)} {selected.units}
               <input
                 type="range"
-                min={DATA_MIN}
-                max={DATA_MAX}
+                min={selected.dataMin}
+                max={selected.dataMax}
                 step={1}
                 value={rangeMax}
                 onChange={(e) =>
@@ -673,13 +758,13 @@ export default function App() {
               textAlign: "center",
             }}
           >
-            g‑C/m<sup>2</sup>
+            {selected.units}
           </p>
 
           <p style={{ margin: 0, fontSize: "11px", color: "#999" }}>
             Data:{" "}
             <a
-              href="https://source.coop/luddaludwig/potential-agc-combustion-ssp585-v0"
+              href="https://source.coop/luddaludwig/boreal-fire-carbon"
               target="_blank"
               rel="noopener noreferrer"
               style={{ color: "#666" }}
