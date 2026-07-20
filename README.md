@@ -8,18 +8,18 @@ https://arctic-carbon.github.io/boreal-web-viewer/
 
 ## Data Layers
 
-High resolution maps of potential fire risk, carbon losses, and permafrost vulnerability to wildfire. These layers can be accessed at https://source.coop/luddaludwig/boreal-fire-carbon
+High resolution maps of potential fire risk, carbon losses, and permafrost vulnerability to wildfire. These layers can be accessed at https://source.coop/luddaludwig/boreal-fire-carbon (note: these are not the final data products)
 
-- **Potential Above-Ground Combustion** — [Potential AGC in Boreal and Arctic North America for SSP585](https://source.coop/luddaludwig/boreal-fire-carbon/AGC_ssp585.tif) (note: this is not the final data product)
-— [Potential AGC in Boreal and Arctic North America for SSP126](https://source.coop/luddaludwig/boreal-fire-carbon/AGC_ssp126.tif) (note: this is not the final data product)
-— [Potential AGC in Boreal and Arctic North America for historical climate normals](https://source.coop/luddaludwig/boreal-fire-carbon/AGC_historical.tif) (note: this is not the final data product)
+- **Potential Above-Ground Combustion** — [Potential AGC in Boreal and Arctic North America for SSP585](https://source.coop/luddaludwig/boreal-fire-carbon/AGC_ssp585.tif) 
+— [Potential AGC in Boreal and Arctic North America for SSP126](https://source.coop/luddaludwig/boreal-fire-carbon/AGC_ssp126.tif)
+— [Potential AGC in Boreal and Arctic North America for historical climate normals](https://source.coop/luddaludwig/boreal-fire-carbon/AGC_historical.tif)
 
-- **Potential Below-Ground Combustion** — [Potential BGC in Boreal and Arctic North America for SSP585](https://source.coop/luddaludwig/boreal-fire-carbon/BGC_ssp585.tif) (note: this is not the final data product)
-— [Potential BGC in Boreal and Arctic North America for SSP126](https://source.coop/luddaludwig/boreal-fire-carbon/BGC_ssp126.tif) (note: this is not the final data product)
-— [Potential BGC in Boreal and Arctic North America for historical climate normals](https://source.coop/luddaludwig/boreal-fire-carbon/BGC_historical.tif) (note: this is not the final data product)
+- **Potential Below-Ground Combustion** — [Potential BGC in Boreal and Arctic North America for SSP585](https://source.coop/luddaludwig/boreal-fire-carbon/BGC_ssp585.tif)
+— [Potential BGC in Boreal and Arctic North America for SSP126](https://source.coop/luddaludwig/boreal-fire-carbon/BGC_ssp126.tif)
+— [Potential BGC in Boreal and Arctic North America for historical climate normals](https://source.coop/luddaludwig/boreal-fire-carbon/BGC_historical.tif) 
 
-- **Potential Burn Depth** — [Potential burn depth in Boreal and Arctic North America for SSP585](https://source.coop/luddaludwig/boreal-fire-carbon/Depth_ssp585.tif) (note: this is not the final data product)
-— [Potential burn depth in Boreal and Arctic North America for SSP126](https://source.coop/luddaludwig/boreal-fire-carbon/Depth_ssp126.tif) (note: this is not the final data product)
+- **Potential Burn Depth** — [Potential burn depth in Boreal and Arctic North America for SSP585](https://source.coop/luddaludwig/boreal-fire-carbon/Depth_ssp585.tif)
+— [Potential burn depth in Boreal and Arctic North America for SSP126](https://source.coop/luddaludwig/boreal-fire-carbon/Depth_ssp126.tif)
 
 Additional data layers will be added over time.
 
