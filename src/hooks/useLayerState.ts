@@ -36,12 +36,31 @@ function padRows(
   return new Uint16Array(dst.buffer);
 }
 
+async function fetchTileWithRetry(
+  image: GeoTIFF | Overview,
+  x: number,
+  y: number,
+  signal: AbortSignal | undefined,
+  maxRetries = 3,
+) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await image.fetchTile(x, y, { signal, boundless: false });
+    } catch (err) {
+      if (signal?.aborted || attempt >= maxRetries - 1) {
+        throw err;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 300 * (attempt + 1)));
+    }
+  }
+}
+
 export async function getTileData(
   image: GeoTIFF | Overview,
   options: { device: Device; x: number; y: number; signal?: AbortSignal },
 ): Promise<TileData> {
   const { device, x, y, signal } = options;
-  const tile = await image.fetchTile(x, y, { signal, boundless: false });
+  const tile = await fetchTileWithRetry(image, x, y, signal);
   const { width, height } = tile.array;
   const data = "data" in tile.array ? tile.array.data : tile.array.bands[0]!;
   const uint16 = new Uint16Array(data.buffer, data.byteOffset, data.length);
