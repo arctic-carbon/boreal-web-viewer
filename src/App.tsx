@@ -17,6 +17,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { MapLayerMouseEvent, MapRef } from "react-map-gl/maplibre";
 import { Map as MaplibreMap, Popup, useControl } from "react-map-gl/maplibre";
 import colormap from "./colormap.js";
+import type { LayerSource } from "./sources.js";
+import { SOURCES } from "./sources.js";
 
 function DeckGLOverlay(props: DeckProps) {
   const overlay = useControl<MapboxOverlay>(() => new MapboxOverlay(props));
@@ -58,32 +60,11 @@ type BasemapKey = keyof typeof BASEMAPS;
 // connection. The raw S3 host is HTTP/1.1 only, which caps parallelism at
 // 6 sockets per origin no matter what `maxRequests` is set to.
 
-const COG_OPTIONS: { title: string; url: string }[] = [
-  {
-    title: "Above-ground combustion SSP-585",
-    url: "https://data.source.coop/luddaludwig/boreal-fire-carbon/AGC_ssp585.tif",
-  },
-  {
-    title: "Below-ground combustion SSP-585",
-    url: "https://data.source.coop/luddaludwig/boreal-fire-carbon/BGC_ssp585.tif",
-  },
-];
-
-// const COG_URL =
-//   "https://data.source.coop/luddaludwig/boreal-fire-carbon/AGC_ssp585.tif";
-
 // Bypass Chrome's single-writer cache lock on range requests to avoid
 // serialized tile fetches (see Chromium disk cache locking behavior).
 // Scoped to SourceHttp only — does not affect MapLibre or other fetches.
 SourceHttp.fetch = (input, init) =>
   fetch(input, { ...init, cache: "no-store" });
-
-// const cogPromise = GeoTIFF.fromUrl(COG_URL);
-
-// ---- Data range (from gdalinfo: Min=90, Max=3290 for the unsigned version) ----
-// The Int16 source has the same value range; negative values are nodata/unused.
-const DATA_MIN = 90;
-const DATA_MAX = 3290;
 
 // Concurrent in-flight tile fetches. Default in deck.gl's TileLayer is 6
 // (historical per-host HTTP/1.1 limit). HTTP/2 + the `cache: "no-store"`
@@ -121,8 +102,8 @@ uniform rescaleUniforms {
     rangeMax: "f32",
   },
   getUniforms: (props: Partial<RescaleProps>) => ({
-    rangeMin: props.rangeMin ?? DATA_MIN,
-    rangeMax: props.rangeMax ?? DATA_MAX,
+    rangeMin: props.rangeMin ?? 0,
+    rangeMax: props.rangeMax ?? 65535,
   }),
 } as const satisfies ShaderModule<RescaleProps>;
 
@@ -200,16 +181,20 @@ async function getTileData(
   return { texture, height, width };
 }
 
+function fmtVal(raw: number, src: LayerSource): string {
+  return (raw * src.displayScale).toFixed(src.displayScale < 1 ? 2 : 0);
+}
+
 export default function App() {
   const mapRef = useRef<MapRef>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const layers = [];
-  const selected = COG_OPTIONS[selectedIndex];
+  const selected = SOURCES[selectedIndex];
   const [device, setDevice] = useState<Device | null>(null);
   const [deviceError, setDeviceError] = useState<string | null>(null);
   const [colormapTexture, setColormapTexture] = useState<Texture | null>(null);
-  const [rangeMin, setRangeMin] = useState(DATA_MIN);
-  const [rangeMax, setRangeMax] = useState(DATA_MAX);
+  const [rangeMin, setRangeMin] = useState(SOURCES[0].dataMin);
+  const [rangeMax, setRangeMax] = useState(SOURCES[0].dataMax);
   const [basemap, setBasemap] = useState<BasemapKey>("dark");
   const [dataOpacity, setDataOpacity] = useState(1);
   // const [selected.url, setCog] = useState<GeoTIFF | null>(null);
@@ -267,6 +252,14 @@ export default function App() {
       document.head.removeChild(style);
     };
   }, []);
+
+  useEffect(() => {
+    const src = SOURCES[selectedIndex];
+    setRangeMin(src.dataMin);
+    setRangeMax(src.dataMax);
+    setMetadataLoaded(false);
+    setClickInfo(null);
+  }, [selectedIndex]);
 
   const handleMapClick = useCallback(async (e: MapLayerMouseEvent) => {
     const ref = geotiffRef.current;
@@ -434,7 +427,9 @@ export default function App() {
             <div style={{ lineHeight: 1.5 }}>
               <div>
                 <span style={{ opacity: 0.6 }}>Value</span>{" "}
-                <strong>{clickInfo.value}</strong>
+                <strong>
+                  {fmtVal(clickInfo.value, selected)} {selected.units}
+                </strong>
               </div>
               <div>
                 <span style={{ opacity: 0.6 }}>Lat</span>{" "}
@@ -582,9 +577,9 @@ export default function App() {
               value={selectedIndex}
               onChange={(e) => setSelectedIndex(Number(e.target.value))}
             >
-              {COG_OPTIONS.map((opt, i) => (
-                <option key={opt.url} value={i}>
-                  {opt.title}
+              {SOURCES.map((src, i) => (
+                <option key={src.id} value={i}>
+                  {src.title}
                 </option>
               ))}
             </select>
@@ -599,11 +594,11 @@ export default function App() {
                 marginBottom: "2px",
               }}
             >
-              Min: {rangeMin}
+              Min: {fmtVal(rangeMin, selected)} {selected.units}
               <input
                 type="range"
-                min={DATA_MIN}
-                max={DATA_MAX}
+                min={selected.dataMin}
+                max={selected.dataMax}
                 step={1}
                 value={rangeMin}
                 onChange={(e) =>
@@ -626,11 +621,11 @@ export default function App() {
                 marginBottom: "2px",
               }}
             >
-              Max: {rangeMax}
+              Max: {fmtVal(rangeMax, selected)} {selected.units}
               <input
                 type="range"
-                min={DATA_MIN}
-                max={DATA_MAX}
+                min={selected.dataMin}
+                max={selected.dataMax}
                 step={1}
                 value={rangeMax}
                 onChange={(e) =>
@@ -707,7 +702,7 @@ export default function App() {
               textAlign: "center",
             }}
           >
-            g‑C/m<sup>2</sup>
+            {selected.units}
           </p>
 
           <p style={{ margin: 0, fontSize: "11px", color: "#999" }}>
