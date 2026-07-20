@@ -122,6 +122,7 @@ type TileData = {
   height: number;
   width: number;
   texture: Texture;
+  rawData: Uint16Array;
 };
 
 /**
@@ -178,7 +179,7 @@ async function getTileData(
     },
   });
 
-  return { texture, height, width };
+  return { texture, height, width, rawData: uint16 };
 }
 
 function fmtVal(raw: number, src: LayerSource): string {
@@ -370,6 +371,31 @@ export default function App() {
             ],
             { padding: 40, duration: 1000 },
           );
+        }
+      },
+      onViewportLoad: (tiles) => {
+        let min = Number.POSITIVE_INFINITY;
+        let max = Number.NEGATIVE_INFINITY;
+        for (const tile of tiles) {
+          const d = tile.data as TileData | null | undefined;
+          if (!d) {
+            continue;
+          }
+          for (const v of d.rawData) {
+            if (v === 0) {
+              continue;
+            } // nodata
+            if (v < min) {
+              min = v;
+            }
+            if (v > max) {
+              max = v;
+            }
+          }
+        }
+        if (Number.isFinite(min) && Number.isFinite(max)) {
+          setRangeMin(min);
+          setRangeMax(max);
         }
       },
       ...(basemap === "dark" && { beforeId: "boundary_country_outline" }),
