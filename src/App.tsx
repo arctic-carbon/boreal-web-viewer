@@ -110,6 +110,14 @@ export default function App() {
   const mapRef = useRef<MapRef>(null);
   const hasInitialFitRef = useRef(false);
   const [basemap, setBasemap] = useState<BasemapKey>("dark");
+  const [mode, setMode] = useState<"explore" | "compare">("explore");
+  const [viewState, setViewState] = useState({
+    longitude: -112.5,
+    latitude: 60,
+    zoom: 3,
+    pitch: 0 as number,
+    bearing: 0 as number,
+  });
 
   const leftState = useLayerState();
   const layers: COGLayer<TileData>[] = [];
@@ -204,13 +212,8 @@ export default function App() {
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
       <MaplibreMap
         ref={mapRef}
-        initialViewState={{
-          longitude: -112.5,
-          latitude: 60,
-          zoom: 3,
-          pitch: 0,
-          bearing: 0,
-        }}
+        viewState={viewState}
+        onMove={(e) => setViewState(e.viewState)}
         mapStyle={BASEMAPS[basemap] as string}
         onClick={leftState.handleMapClick}
       >
@@ -293,6 +296,42 @@ export default function App() {
           setBasemap((b) => (b === "dark" ? "satellite" : "dark"))
         }
       />
+
+      {/* Mode toggle */}
+      <div
+        style={{
+          position: "absolute",
+          top: "20px",
+          left: "50%",
+          transform: "translateX(-50%)",
+          zIndex: 1001,
+          display: "flex",
+          background: "white",
+          borderRadius: "8px",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+          overflow: "hidden",
+        }}
+      >
+        {(["explore", "compare"] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => setMode(m)}
+            style={{
+              padding: "6px 14px",
+              fontSize: "12px",
+              border: "none",
+              cursor: "pointer",
+              background: mode === m ? "#3b528b" : "transparent",
+              color: mode === m ? "white" : "#444",
+              fontWeight: mode === m ? 600 : 400,
+              textTransform: "capitalize",
+            }}
+          >
+            {m}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
