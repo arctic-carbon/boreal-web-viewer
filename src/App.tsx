@@ -580,6 +580,16 @@ export default function App() {
             <select
               value={selectedIndex}
               onChange={(e) => setSelectedIndex(Number(e.target.value))}
+              style={{
+                width: "100%",
+                padding: "6px 12px",
+                fontSize: "12px",
+                background: "#f0f0f0",
+                border: "1px solid #ccc",
+                borderRadius: "4px",
+                cursor: "pointer",
+                marginBottom: "12px",
+              }}
             >
               {SOURCES.map((src, i) => (
                 <option key={src.id} value={i}>
