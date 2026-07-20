@@ -296,50 +296,52 @@ export default function App() {
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
       {/* Left map — always full screen, renders underneath */}
-      <MaplibreMap
-        ref={mapRef}
-        viewState={viewState}
-        onMove={(e) => setViewState(e.viewState)}
-        mapStyle={mapStyle}
-        onClick={leftState.handleMapClick}
-        style={{ position: "absolute", inset: 0 }}
-      >
-        <DeckGLOverlay
-          layers={leftLayer ? [leftLayer] : []}
-          // @ts-expect-error interleaved is valid for MapboxOverlay but missing from DeckProps
-          interleaved
-          onDeviceInitialized={leftState.setDevice}
-        />
-        {leftState.clickInfo && (
-          <Popup
-            longitude={leftState.clickInfo.lng}
-            latitude={leftState.clickInfo.lat}
-            closeOnClick={false}
-            onClose={() => leftState.setClickInfo(null)}
-            anchor="bottom"
-          >
-            <div style={{ lineHeight: 1.5 }}>
-              <div>
-                <span style={{ opacity: 0.6 }}>Value</span>{" "}
-                <strong>
-                  {(
-                    leftState.clickInfo.value * leftState.selected.displayScale
-                  ).toFixed(leftState.selected.displayScale < 1 ? 2 : 0)}{" "}
-                  {leftState.selected.units}
-                </strong>
+      <div style={{ position: "absolute", inset: 0 }}>
+        <MaplibreMap
+          ref={mapRef}
+          {...viewState}
+          onMove={(e) => setViewState(e.viewState)}
+          mapStyle={mapStyle}
+          onClick={leftState.handleMapClick}
+        >
+          <DeckGLOverlay
+            layers={leftLayer ? [leftLayer] : []}
+            // @ts-expect-error interleaved is valid for MapboxOverlay but missing from DeckProps
+            interleaved
+            onDeviceInitialized={leftState.setDevice}
+          />
+          {leftState.clickInfo && (
+            <Popup
+              longitude={leftState.clickInfo.lng}
+              latitude={leftState.clickInfo.lat}
+              closeOnClick={false}
+              onClose={() => leftState.setClickInfo(null)}
+              anchor="bottom"
+            >
+              <div style={{ lineHeight: 1.5 }}>
+                <div>
+                  <span style={{ opacity: 0.6 }}>Value</span>{" "}
+                  <strong>
+                    {(
+                      leftState.clickInfo.value *
+                      leftState.selected.displayScale
+                    ).toFixed(leftState.selected.displayScale < 1 ? 2 : 0)}{" "}
+                    {leftState.selected.units}
+                  </strong>
+                </div>
+                <div>
+                  <span style={{ opacity: 0.6 }}>Lat</span>{" "}
+                  {leftState.clickInfo.lat.toFixed(5)}
+                </div>
+                <div>
+                  <span style={{ opacity: 0.6 }}>Lon</span>{" "}
+                  {leftState.clickInfo.lng.toFixed(5)}
+                </div>
               </div>
-              <div>
-                <span style={{ opacity: 0.6 }}>Lat</span>{" "}
-                {leftState.clickInfo.lat.toFixed(5)}
-              </div>
-              <div>
-                <span style={{ opacity: 0.6 }}>Lon</span>{" "}
-                {leftState.clickInfo.lng.toFixed(5)}
-              </div>
-            </div>
-          </Popup>
-        )}
-      </MaplibreMap>
+            </Popup>
+          )}
+        </MaplibreMap>
+      </div>
 
       {/* Right map — clipped to the right of the divider, compare mode only */}
       {isCompare && (
@@ -351,11 +353,10 @@ export default function App() {
           }}
         >
           <MaplibreMap
-            viewState={viewState}
+            {...viewState}
             onMove={(e) => setViewState(e.viewState)}
             mapStyle={mapStyle}
             onClick={rightState.handleMapClick}
-            style={{ position: "absolute", inset: 0 }}
           >
             <DeckGLOverlay
               layers={rightLayer ? [rightLayer] : []}
