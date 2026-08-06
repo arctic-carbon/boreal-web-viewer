@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type { LayerState } from "../hooks/useLayerState.js";
 import { SOURCES } from "../sources.js";
 
@@ -27,6 +28,50 @@ export function LayerPanel({
   matchScaleEnabled = false,
 }: LayerPanelProps) {
   const isRight = side === "right";
+  const [minDraft, setMinDraft] = useState<string | null>(null);
+  const [maxDraft, setMaxDraft] = useState<string | null>(null);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset drafts when source changes
+  useEffect(() => {
+    setMinDraft(null);
+    setMaxDraft(null);
+  }, [state.selectedIndex]);
+
+  function commitMin(draft: string | null) {
+    if (draft === null) {
+      return;
+    }
+    const parsed = parseFloat(draft);
+    if (Number.isNaN(parsed)) {
+      setMinDraft(null);
+      return;
+    }
+    const raw = Math.round(parsed / state.selected.displayScale);
+    const clamped = Math.max(
+      state.selected.dataMin,
+      Math.min(state.selected.dataMax, raw),
+    );
+    state.setRangeMin(Math.min(clamped, state.rangeMax - 1));
+    setMinDraft(null);
+  }
+
+  function commitMax(draft: string | null) {
+    if (draft === null) {
+      return;
+    }
+    const parsed = parseFloat(draft);
+    if (Number.isNaN(parsed)) {
+      setMaxDraft(null);
+      return;
+    }
+    const raw = Math.round(parsed / state.selected.displayScale);
+    const clamped = Math.max(
+      state.selected.dataMin,
+      Math.min(state.selected.dataMax, raw),
+    );
+    state.setRangeMax(Math.max(clamped, state.rangeMin + 1));
+    setMaxDraft(null);
+  }
 
   const toggleBtnStyle: React.CSSProperties = {
     position: "absolute",
@@ -136,58 +181,158 @@ export function LayerPanel({
         </select>
       </div>
 
-      {/* Min slider */}
+      {/* Min control */}
       <div style={{ marginBottom: "8px" }}>
-        <label
-          style={{
-            display: "block",
-            fontSize: "12px",
-            color: "#666",
-            marginBottom: "2px",
-          }}
-        >
-          Min: {fmtVal(state.rangeMin, state.selected)} {state.selected.units}
-          <input
-            type="range"
-            min={state.selected.dataMin}
-            max={state.selected.dataMax}
-            step={1}
-            value={state.rangeMin}
-            onChange={(e) =>
-              state.setRangeMin(
-                Math.min(parseFloat(e.target.value), state.rangeMax - 1),
-              )
-            }
-            style={{ width: "100%", cursor: "pointer" }}
-          />
-        </label>
+        {compareMode ? (
+          <>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                marginBottom: "2px",
+                fontSize: "12px",
+                color: "#666",
+              }}
+            >
+              <span>Min</span>
+              <input
+                type="number"
+                value={minDraft ?? fmtVal(state.rangeMin, state.selected)}
+                onChange={(e) => setMinDraft(e.target.value)}
+                onBlur={() => commitMin(minDraft)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    commitMin(minDraft);
+                  }
+                }}
+                style={{
+                  width: "70px",
+                  fontSize: "12px",
+                  padding: "2px 4px",
+                  border: "1px solid #ccc",
+                  borderRadius: "4px",
+                }}
+              />
+              <span>{state.selected.units}</span>
+            </div>
+            <input
+              type="range"
+              min={state.selected.dataMin}
+              max={state.selected.dataMax}
+              step={1}
+              value={state.rangeMin}
+              onChange={(e) =>
+                state.setRangeMin(
+                  Math.min(parseFloat(e.target.value), state.rangeMax - 1),
+                )
+              }
+              aria-label="Minimum value"
+              style={{ width: "100%", cursor: "pointer" }}
+            />
+          </>
+        ) : (
+          <label
+            style={{
+              display: "block",
+              fontSize: "12px",
+              color: "#666",
+              marginBottom: "2px",
+            }}
+          >
+            Min: {fmtVal(state.rangeMin, state.selected)} {state.selected.units}
+            <input
+              type="range"
+              min={state.selected.dataMin}
+              max={state.selected.dataMax}
+              step={1}
+              value={state.rangeMin}
+              onChange={(e) =>
+                state.setRangeMin(
+                  Math.min(parseFloat(e.target.value), state.rangeMax - 1),
+                )
+              }
+              style={{ width: "100%", cursor: "pointer" }}
+            />
+          </label>
+        )}
       </div>
 
-      {/* Max slider */}
+      {/* Max control */}
       <div style={{ marginBottom: "8px" }}>
-        <label
-          style={{
-            display: "block",
-            fontSize: "12px",
-            color: "#666",
-            marginBottom: "2px",
-          }}
-        >
-          Max: {fmtVal(state.rangeMax, state.selected)} {state.selected.units}
-          <input
-            type="range"
-            min={state.selected.dataMin}
-            max={state.selected.dataMax}
-            step={1}
-            value={state.rangeMax}
-            onChange={(e) =>
-              state.setRangeMax(
-                Math.max(parseFloat(e.target.value), state.rangeMin + 1),
-              )
-            }
-            style={{ width: "100%", cursor: "pointer" }}
-          />
-        </label>
+        {compareMode ? (
+          <>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                marginBottom: "2px",
+                fontSize: "12px",
+                color: "#666",
+              }}
+            >
+              <span>Max</span>
+              <input
+                type="number"
+                value={maxDraft ?? fmtVal(state.rangeMax, state.selected)}
+                onChange={(e) => setMaxDraft(e.target.value)}
+                onBlur={() => commitMax(maxDraft)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    commitMax(maxDraft);
+                  }
+                }}
+                style={{
+                  width: "70px",
+                  fontSize: "12px",
+                  padding: "2px 4px",
+                  border: "1px solid #ccc",
+                  borderRadius: "4px",
+                }}
+              />
+              <span>{state.selected.units}</span>
+            </div>
+            <input
+              type="range"
+              min={state.selected.dataMin}
+              max={state.selected.dataMax}
+              step={1}
+              value={state.rangeMax}
+              onChange={(e) =>
+                state.setRangeMax(
+                  Math.max(parseFloat(e.target.value), state.rangeMin + 1),
+                )
+              }
+              aria-label="Maximum value"
+              style={{ width: "100%", cursor: "pointer" }}
+            />
+          </>
+        ) : (
+          <label
+            style={{
+              display: "block",
+              fontSize: "12px",
+              color: "#666",
+              marginBottom: "2px",
+            }}
+          >
+            Max: {fmtVal(state.rangeMax, state.selected)} {state.selected.units}
+            <input
+              type="range"
+              min={state.selected.dataMin}
+              max={state.selected.dataMax}
+              step={1}
+              value={state.rangeMax}
+              onChange={(e) =>
+                state.setRangeMax(
+                  Math.max(parseFloat(e.target.value), state.rangeMin + 1),
+                )
+              }
+              style={{ width: "100%", cursor: "pointer" }}
+            />
+          </label>
+        )}
       </div>
 
       {/* Auto-scale button */}
