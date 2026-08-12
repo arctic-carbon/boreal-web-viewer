@@ -525,6 +525,7 @@ export default function App() {
         basemap={basemap}
         onToggleBasemap={toggleBasemap}
         side={isCompare ? "left" : undefined}
+        compareMode={isCompare}
       />
 
       {/* Right panel — compare mode only */}
