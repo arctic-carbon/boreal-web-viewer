@@ -5,7 +5,7 @@
 
 ## Overview
 
-Add a typed numeric input alongside the Min and Max sliders in the LayerPanel, visible only when compare mode is active. This lets users set precise scale bounds by typing display-unit values instead of relying solely on the slider.
+Add a typed numeric input alongside the Min and Max sliders in the LayerPanel, visible only when compare mode is active. This lets users set precise scale bounds by typing display-unit values instead of relying solely on the slider. Had to resend due to webhook error in Github actions.
 
 ## Scope
 
