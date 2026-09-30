@@ -181,6 +181,38 @@ export function LayerPanel({
         </select>
       </div>
 
+      {/* Band selector — shown for multi-band layers */}
+      {state.bandCount > 1 && (
+        <div style={{ marginBottom: "12px" }}>
+          <p style={{ margin: "0 0 6px 0", fontSize: "12px", color: "#666" }}>
+            Band
+          </p>
+          <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
+            {Array.from({ length: state.bandCount }, (_, i) => i + 1).map(
+              (band) => (
+                <button
+                  key={band}
+                  type="button"
+                  onClick={() => state.setBand(band - 1)}
+                  style={{
+                    padding: "2px 8px",
+                    borderRadius: "4px",
+                    border: "1px solid #ccc",
+                    background:
+                      state.selectedBand === band - 1 ? "#333" : "transparent",
+                    color: state.selectedBand === band - 1 ? "#fff" : "#666",
+                    cursor: "pointer",
+                    fontSize: "12px",
+                  }}
+                >
+                  {band}
+                </button>
+              ),
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Min control */}
       <div style={{ marginBottom: "8px" }}>
         {compareMode ? (
