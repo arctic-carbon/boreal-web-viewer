@@ -12,15 +12,16 @@ export type TileData = {
   height: number;
   width: number;
   texture: Texture;
-  rawData: Uint16Array;
+  rawData: Uint16Array | Float32Array | Uint8Array;
 };
 
 function padRows(
-  data: Uint16Array,
+  data: Uint16Array | Float32Array | Uint8Array,
   width: number,
   height: number,
-): Uint16Array {
-  const rowBytes = width * 2;
+  bytesPerElement: number,
+): Uint16Array | Float32Array | Uint8Array {
+  const rowBytes = width * bytesPerElement;
   const alignedRowBytes = Math.ceil(rowBytes / 4) * 4;
   if (alignedRowBytes === rowBytes) {
     return data;
@@ -32,6 +33,12 @@ function padRows(
       src.subarray(r * rowBytes, (r + 1) * rowBytes),
       r * alignedRowBytes,
     );
+  }
+  if (data instanceof Float32Array) {
+    return new Float32Array(dst.buffer);
+  }
+  if (data instanceof Uint8Array) {
+    return new Uint8Array(dst.buffer);
   }
   return new Uint16Array(dst.buffer);
 }
@@ -57,14 +64,52 @@ async function fetchTileWithRetry(
 
 export async function getTileData(
   image: GeoTIFF | Overview,
-  options: { device: Device; x: number; y: number; signal?: AbortSignal },
+  options: {
+    device: Device;
+    x: number;
+    y: number;
+    signal?: AbortSignal;
+    dataType?: "uint16" | "float32" | "byte";
+    band?: number;
+  },
 ): Promise<TileData> {
-  const { device, x, y, signal } = options;
+  const { device, x, y, signal, dataType = "uint16", band = 0 } = options;
   const tile = await fetchTileWithRetry(image, x, y, signal);
   const { width, height } = tile.array;
-  const data = "data" in tile.array ? tile.array.data : tile.array.bands[0]!;
-  const uint16 = new Uint16Array(data.buffer, data.byteOffset, data.length);
-  const aligned = padRows(uint16, width, height);
+  const raw =
+    "data" in tile.array
+      ? tile.array.data
+      : (tile.array.bands[band] ?? tile.array.bands[0]!);
+
+  if (dataType === "float32") {
+    const typed = new Float32Array(raw.buffer, raw.byteOffset, raw.length);
+    const aligned = padRows(typed, width, height, 4) as Float32Array;
+    const texture = device.createTexture({
+      data: aligned,
+      format: "r32float",
+      width,
+      height,
+      sampler: { minFilter: "nearest", magFilter: "nearest" },
+    });
+    return { texture, height, width, rawData: typed };
+  }
+
+  if (dataType === "byte") {
+    const typed = new Uint8Array(raw.buffer, raw.byteOffset, raw.length);
+    const aligned = padRows(typed, width, height, 1) as Uint8Array;
+    const texture = device.createTexture({
+      data: aligned,
+      format: "r8unorm",
+      width,
+      height,
+      sampler: { minFilter: "nearest", magFilter: "nearest" },
+    });
+    return { texture, height, width, rawData: typed };
+  }
+
+  // uint16 — existing path unchanged
+  const uint16 = new Uint16Array(raw.buffer, raw.byteOffset, raw.length);
+  const aligned = padRows(uint16, width, height, 2) as Uint16Array;
   const texture = device.createTexture({
     data: aligned,
     format: "r16unorm",
@@ -80,6 +125,10 @@ type LoadedTile = { data: unknown };
 function computeAutoScale(
   tiles: LoadedTile[],
 ): { min: number; max: number } | null {
+  const first = (tiles[0]?.data as TileData | null | undefined)?.rawData;
+  if (!first || !(first instanceof Uint16Array)) {
+    return null;
+  }
   const hist = new Uint32Array(65536);
   let total = 0;
   for (const tile of tiles) {
@@ -142,6 +191,9 @@ export type LayerState = {
   clickInfo: { lng: number; lat: number; value: number } | null;
   setClickInfo: (v: { lng: number; lat: number; value: number } | null) => void;
   pendingAutoScale: { min: number; max: number } | null;
+  selectedBand: number;
+  setBand: (b: number) => void;
+  bandCount: number;
   handleViewportLoad: (tiles: LoadedTile[]) => void;
   applyAutoScale: () => void;
   trackingGetTileData: typeof getTileData;
@@ -180,6 +232,8 @@ export function useLayerState(initialIndex = 0): LayerState {
     min: number;
     max: number;
   } | null>(null);
+  const [selectedBand, setSelectedBand] = useState(0);
+  const [bandCount, setBandCount] = useState(1);
 
   const loadingCountRef = useRef(0);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -200,6 +254,8 @@ export function useLayerState(initialIndex = 0): LayerState {
     setRangeMax(SOURCES[selectedIndex]!.dataMax);
     setMetadataLoaded(false);
     setClickInfo(null);
+    setSelectedBand(0);
+    setBandCount(1);
     shouldAutoScaleRef.current = true;
     setPendingAutoScale(null);
   }, [selectedIndex]);
@@ -225,7 +281,11 @@ export function useLayerState(initialIndex = 0): LayerState {
         setTilesLoading(true);
       }
       try {
-        return await getTileData(image, options);
+        return await getTileData(image, {
+          ...options,
+          dataType: selected.dataType,
+          band: selectedBand,
+        });
       } finally {
         loadingCountRef.current--;
         if (loadingCountRef.current === 0) {
@@ -234,7 +294,7 @@ export function useLayerState(initialIndex = 0): LayerState {
         }
       }
     },
-    [],
+    [selected.dataType, selectedBand],
   );
 
   const handleViewportLoad = useCallback((tiles: LoadedTile[]) => {
@@ -274,6 +334,7 @@ export function useLayerState(initialIndex = 0): LayerState {
       },
     ) => {
       setMetadataLoaded(true);
+      setBandCount(tiff.count ?? 1);
       const sourceProj = new proj4.Proj(
         options.projection as unknown as proj4.ProjectionDefinition,
       );
@@ -287,35 +348,43 @@ export function useLayerState(initialIndex = 0): LayerState {
     [],
   );
 
-  const handleMapClick = useCallback(async (e: MapLayerMouseEvent) => {
-    const ref = geotiffRef.current;
-    if (!ref) {
-      return;
-    }
-    const { geotiff, toSourceCRS } = ref;
-    const [x, y] = toSourceCRS(e.lngLat.lng, e.lngLat.lat);
-    const [row, col] = geotiff.index(x, y);
-    if (row < 0 || row >= geotiff.height || col < 0 || col >= geotiff.width) {
-      setClickInfo(null);
-      return;
-    }
-    const tileX = Math.floor(col / geotiff.tileWidth);
-    const tileY = Math.floor(row / geotiff.tileHeight);
-    try {
-      const tile = await geotiff.fetchTile(tileX, tileY);
-      const px = col % geotiff.tileWidth;
-      const py = row % geotiff.tileHeight;
-      const arr = "data" in tile.array ? tile.array.data : tile.array.bands[0]!;
-      const value = arr[py * tile.array.width + px]!;
-      if (value === 0) {
-        setClickInfo(null);
-      } else {
-        setClickInfo({ lng: e.lngLat.lng, lat: e.lngLat.lat, value });
+  const handleMapClick = useCallback(
+    async (e: MapLayerMouseEvent) => {
+      const ref = geotiffRef.current;
+      if (!ref) {
+        return;
       }
-    } catch {
-      setClickInfo(null);
-    }
-  }, []);
+      const { geotiff, toSourceCRS } = ref;
+      const [x, y] = toSourceCRS(e.lngLat.lng, e.lngLat.lat);
+      const [row, col] = geotiff.index(x, y);
+      if (row < 0 || row >= geotiff.height || col < 0 || col >= geotiff.width) {
+        setClickInfo(null);
+        return;
+      }
+      const tileX = Math.floor(col / geotiff.tileWidth);
+      const tileY = Math.floor(row / geotiff.tileHeight);
+      try {
+        const tile = await geotiff.fetchTile(tileX, tileY);
+        const px = col % geotiff.tileWidth;
+        const py = row % geotiff.tileHeight;
+        const arr =
+          "data" in tile.array
+            ? tile.array.data
+            : (tile.array.bands[selectedBand] ?? tile.array.bands[0]!);
+        const value = arr[py * tile.array.width + px]!;
+        const isNodata =
+          selected.dataType === "float32" ? Number.isNaN(value) : value === 0;
+        if (isNodata) {
+          setClickInfo(null);
+        } else {
+          setClickInfo({ lng: e.lngLat.lng, lat: e.lngLat.lat, value });
+        }
+      } catch {
+        setClickInfo(null);
+      }
+    },
+    [selected.dataType, selectedBand],
+  );
 
   return {
     selectedIndex,
@@ -338,6 +407,9 @@ export function useLayerState(initialIndex = 0): LayerState {
     clickInfo,
     setClickInfo,
     pendingAutoScale,
+    selectedBand,
+    setBand: setSelectedBand,
+    bandCount,
     handleViewportLoad,
     applyAutoScale,
     trackingGetTileData,
