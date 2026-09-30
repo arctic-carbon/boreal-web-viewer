@@ -1,4 +1,6 @@
-const BASE = "https://data.source.coop/luddaludwig/boreal-fire-carbon";
+const BASE =
+  import.meta.env.VITE_DATA_BASE_URL ??
+  "https://data.source.coop/luddaludwig/boreal-fire-carbon";
 
 export type LayerSource = {
   id: string;
@@ -8,79 +10,68 @@ export type LayerSource = {
   dataMax: number;
   units: string;
   displayScale: number;
+  dataType: "uint16" | "float32" | "byte";
 };
 
 export const SOURCES: LayerSource[] = [
   {
-    id: "AGC_ssp585",
-    url: `${BASE}/AGC_ssp585.tif`,
-    title: "Above-ground combustion SSP-585",
-    units: "g-C/m²",
-    displayScale: 1,
-    dataMin: 95,
-    dataMax: 3295,
-  },
-  {
-    id: "AGC_ssp126",
-    url: `${BASE}/AGC_ssp126.tif`,
-    title: "Above-ground combustion SSP-126",
-    units: "g-C/m²",
-    displayScale: 1,
-    dataMin: 85,
-    dataMax: 3297,
-  },
-  {
-    id: "AGC_historical",
-    url: `${BASE}/AGC_historical.tif`,
+    id: "AGC_hist",
+    url: `${BASE}/AGC_hist_denali.tif`,
     title: "Above-ground combustion Historical",
     units: "g-C/m²",
     displayScale: 1,
-    dataMin: 72,
-    dataMax: 3281,
+    dataMin: 1,
+    dataMax: 3792,
+    dataType: "uint16",
   },
   {
-    id: "BGC_ssp585",
-    url: `${BASE}/BGC_ssp585.tif`,
-    title: "Below-ground combustion SSP-585",
+    id: "AGC_ssp585",
+    url: `${BASE}/AGC_ssp585_denali.tif`,
+    title: "Above-ground combustion SSP-585",
     units: "g-C/m²",
     displayScale: 1,
-    dataMin: 1079,
-    dataMax: 5645,
+    dataMin: 1,
+    dataMax: 3846,
+    dataType: "uint16",
   },
   {
-    id: "BGC_ssp126",
-    url: `${BASE}/BGC_ssp126.tif`,
-    title: "Below-ground combustion SSP-126",
-    units: "g-C/m²",
-    displayScale: 1,
-    dataMin: 1099,
-    dataMax: 5539,
-  },
-  {
-    id: "BGC_historical",
-    url: `${BASE}/BGC_historical.tif`,
+    id: "BGC_hist",
+    url: `${BASE}/BGC_hist_denali.tif`,
     title: "Below-ground combustion Historical",
     units: "g-C/m²",
     displayScale: 1,
-    dataMin: 985,
-    dataMax: 5762,
+    dataMin: 1,
+    dataMax: 5464,
+    dataType: "uint16",
   },
   {
-    id: "Depth_ssp585",
-    url: `${BASE}/Depth_ssp585.tif`,
-    title: "Burn depth SSP-585",
-    units: "cm",
-    displayScale: 0.01,
-    dataMin: 467,
-    dataMax: 2111,
+    id: "BGC_ssp585",
+    url: `${BASE}/BGC_ssp585_denali.tif`,
+    title: "Below-ground combustion SSP-585",
+    units: "g-C/m²",
+    displayScale: 1,
+    dataMin: 1,
+    dataMax: 5729,
+    dataType: "uint16",
   },
   {
-    id: "Depth_ssp126",
-    url: `${BASE}/Depth_ssp126.tif`,
-    title: "Burn depth SSP-126",
-    units: "cm",
-    displayScale: 0.01,
-    dataMin: 491,
-    dataMax: 2166,
+    id: "fire_risk",
+    url: `${BASE}/fire_risk_denali.tif`,
+    title: "Fire risk",
+    units: "",
+    displayScale: 1,
+    dataMin: 0.02,
+    dataMax: 0.74,
+    dataType: "float32",
+  },
+  {
+    id: "landcover",
+    url: `${BASE}/landcover_denali.tif`,
+    title: "Land cover",
+    units: "",
+    displayScale: 1,
+    dataMin: 0,
+    dataMax: 25,
+    dataType: "byte",
   },
 ];
