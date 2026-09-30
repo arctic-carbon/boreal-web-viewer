@@ -96,6 +96,66 @@ uniform rescaleUniforms {
   }),
 } as const satisfies ShaderModule<RescaleProps>;
 
+const RescaleFloat32 = {
+  name: "rescale-float32",
+  fs: `\
+uniform rescaleUniforms {
+  float rangeMin;
+  float rangeMax;
+} rescale;
+`,
+  inject: {
+    "fs:DECKGL_FILTER_COLOR": /* glsl */ `
+      float rawValue = color.r;
+      if (isnan(rawValue)) discard;
+      float t = clamp(
+        (rawValue - rescale.rangeMin) / (rescale.rangeMax - rescale.rangeMin),
+        0.0,
+        1.0
+      );
+      color.r = t;
+    `,
+  },
+  uniformTypes: {
+    rangeMin: "f32",
+    rangeMax: "f32",
+  },
+  getUniforms: (props: Partial<RescaleProps>) => ({
+    rangeMin: props.rangeMin ?? 0,
+    rangeMax: props.rangeMax ?? 1,
+  }),
+} as const satisfies ShaderModule<RescaleProps>;
+
+const RescaleByte = {
+  name: "rescale-byte",
+  fs: `\
+uniform rescaleUniforms {
+  float rangeMin;
+  float rangeMax;
+} rescale;
+`,
+  inject: {
+    "fs:DECKGL_FILTER_COLOR": /* glsl */ `
+      float rawValue = color.r * 255.0;
+      if (rawValue == 0.0) discard;
+      float t = clamp(
+        (rawValue - rescale.rangeMin) / (rescale.rangeMax - rescale.rangeMin),
+        0.0,
+        1.0
+      );
+      color.r = t;
+    `,
+  },
+  uniformTypes: {
+    rangeMin: "f32",
+    rangeMax: "f32",
+  },
+  getUniforms: (props: Partial<RescaleProps>) => ({
+    rangeMin: props.rangeMin ?? 0,
+    rangeMax: props.rangeMax ?? 255,
+  }),
+} as const satisfies ShaderModule<RescaleProps>;
+
 /** Set alpha to 1.0 (data has no alpha channel) */
 const SetAlpha1 = {
   name: "set-alpha-1",
@@ -118,6 +178,12 @@ function buildCOGLayer(
     return null;
   }
   const colormapTexture = state.colormapTexture;
+  const rescaleModule =
+    state.selected.dataType === "float32"
+      ? RescaleFloat32
+      : state.selected.dataType === "byte"
+        ? RescaleByte
+        : Rescale;
   return new COGLayer<TileData>({
     id,
     opacity: state.dataOpacity,
@@ -131,7 +197,7 @@ function buildCOGLayer(
           props: { textureName: tileData.texture },
         },
         {
-          module: Rescale,
+          module: rescaleModule,
           props: {
             rangeMin: state.rangeMin,
             rangeMax: state.rangeMax,
