@@ -13,6 +13,7 @@ export type LayerSource = {
   displayDecimals?: number;
   dataType: "uint16" | "float32" | "byte";
   singleBand?: boolean;
+  hideRangeControls?: boolean;
 };
 
 export const SOURCES: LayerSource[] = [
@@ -77,5 +78,6 @@ export const SOURCES: LayerSource[] = [
     dataMax: 25,
     dataType: "byte",
     singleBand: true,
+    hideRangeControls: true,
   },
 ];
