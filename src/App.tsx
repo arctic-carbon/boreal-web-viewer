@@ -185,14 +185,11 @@ function buildCOGLayer(
         ? RescaleByte
         : Rescale;
   return new COGLayer<TileData>({
-    id,
+    id: `${id}-b${state.selectedBand}`,
     opacity: state.dataOpacity,
     geotiff: state.selected.url,
     maxRequests: MAX_TILE_REQUESTS,
     getTileData: state.trackingGetTileData,
-    updateTriggers: {
-      getTileData: [state.selectedBand, state.selected.id],
-    },
     renderTile: (tileData: TileData): RenderTileResult => ({
       renderPipeline: [
         {
