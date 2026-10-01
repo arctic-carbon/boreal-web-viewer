@@ -4,8 +4,10 @@ import {
   GeoArrowSolidPolygonLayer,
 } from "@geoarrow/deck.gl-geoarrow";
 import wasmUrl from "@geoarrow/flatgeobuf-wasm/esm/index_bg.wasm?url";
+import type { RecordBatch } from "apache-arrow";
 import { tableFromIPC } from "apache-arrow";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import type { VectorSource } from "../vectorSources.js";
 import { VECTOR_SOURCES } from "../vectorSources.js";
 
 const BASE =
@@ -31,7 +33,9 @@ async function getReadFn(): Promise<WasmReadFn> {
   return wasmReadFlatGeobuf;
 }
 
-async function loadOverlayLayers(): Promise<Layer[]> {
+type SourceBatches = { src: VectorSource; batches: RecordBatch[] };
+
+async function loadSourceBatches(): Promise<SourceBatches[]> {
   const readFlatGeobuf = await getReadFn();
   const results = await Promise.allSettled(
     VECTOR_SOURCES.map(async (src) => {
@@ -44,39 +48,36 @@ async function loadOverlayLayers(): Promise<Layer[]> {
       const wasmTable = readFlatGeobuf(bytes);
       const ipcBytes = wasmTable.intoIPCStream();
       const jsTable = tableFromIPC(ipcBytes);
-
-      const layers: Layer[] = [];
-      for (let i = 0; i < jsTable.batches.length; i++) {
-        const batch = jsTable.batches[i];
-        if (src.geomType === "line") {
-          layers.push(
-            new GeoArrowPathLayer({
-              id: `vector-${src.id}-${i}`,
-              data: batch,
-              getColor: src.color,
-              getWidth: src.width ?? 1,
-              widthUnits: "pixels",
-              widthMinPixels: 1,
-              pickable: false,
-            }),
-          );
-        } else {
-          layers.push(
-            new GeoArrowSolidPolygonLayer({
-              id: `vector-${src.id}-${i}`,
-              data: batch,
-              getFillColor: src.color,
-              extruded: false,
-              pickable: false,
-            }),
-          );
-        }
-      }
-      return layers;
+      return { src, batches: jsTable.batches as RecordBatch[] };
     }),
   );
+  return results.flatMap((r) => (r.status === "fulfilled" ? [r.value] : []));
+}
 
-  return results.flatMap((r) => (r.status === "fulfilled" ? r.value : []));
+// Builds fresh layer instances from cached batch data.
+// deck.gl requires new instances each render — do not cache or reuse layers.
+function buildLayers(sourceBatches: SourceBatches[]): Layer[] {
+  return sourceBatches.flatMap(({ src, batches }) =>
+    batches.map((batch, i) =>
+      src.geomType === "line"
+        ? new GeoArrowPathLayer({
+            id: `vector-${src.id}-${i}`,
+            data: batch,
+            getColor: src.color,
+            getWidth: src.width ?? 1,
+            widthUnits: "pixels",
+            widthMinPixels: 1,
+            pickable: false,
+          })
+        : new GeoArrowSolidPolygonLayer({
+            id: `vector-${src.id}-${i}`,
+            data: batch,
+            getFillColor: src.color,
+            extruded: false,
+            pickable: false,
+          }),
+    ),
+  );
 }
 
 export type VectorOverlayState = {
@@ -87,22 +88,27 @@ export type VectorOverlayState = {
 
 export function useVectorOverlays(): VectorOverlayState {
   const [showOverlays, setShowOverlays] = useState(false);
-  const cachedLayers = useRef<Layer[] | null>(null);
-  const [loadedLayers, setLoadedLayers] = useState<Layer[]>([]);
+  const cachedBatches = useRef<SourceBatches[] | null>(null);
+  const [loadedBatches, setLoadedBatches] = useState<SourceBatches[] | null>(
+    null,
+  );
 
-  // Derived — no separate state needed.
-  const overlayLayers = showOverlays ? loadedLayers : [];
+  // Fresh layer instances built from cached batch data on each visibility change.
+  const overlayLayers = useMemo(
+    () => (showOverlays && loadedBatches ? buildLayers(loadedBatches) : []),
+    [showOverlays, loadedBatches],
+  );
 
   const toggleOverlays = useCallback(() => {
-    if (cachedLayers.current !== null) {
+    if (cachedBatches.current !== null) {
       setShowOverlays((prev) => !prev);
       return;
     }
-    // First enable — load all layers then cache them.
+    // First enable — fetch all files, cache the raw batches.
     setShowOverlays(true);
-    loadOverlayLayers().then((layers) => {
-      cachedLayers.current = layers;
-      setLoadedLayers(layers);
+    loadSourceBatches().then((batches) => {
+      cachedBatches.current = batches;
+      setLoadedBatches(batches);
     });
   }, []);
 
