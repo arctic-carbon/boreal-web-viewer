@@ -1,5 +1,6 @@
 export type VectorSource = {
   id: string;
+  label: string;
   file: string;
   geomType: "line" | "polygon";
   color: [number, number, number, number];
@@ -9,6 +10,7 @@ export type VectorSource = {
 export const VECTOR_SOURCES: VectorSource[] = [
   {
     id: "highway",
+    label: "Highway",
     file: "highway.fgb",
     geomType: "line",
     color: [255, 200, 0, 200],
@@ -16,6 +18,7 @@ export const VECTOR_SOURCES: VectorSource[] = [
   },
   {
     id: "road",
+    label: "Road",
     file: "road.fgb",
     geomType: "line",
     color: [200, 200, 200, 180],
@@ -23,6 +26,7 @@ export const VECTOR_SOURCES: VectorSource[] = [
   },
   {
     id: "trail",
+    label: "Trail",
     file: "trail.fgb",
     geomType: "line",
     color: [180, 120, 60, 180],
@@ -30,6 +34,7 @@ export const VECTOR_SOURCES: VectorSource[] = [
   },
   {
     id: "railroad",
+    label: "Railroad",
     file: "railroad.fgb",
     geomType: "line",
     color: [160, 160, 220, 180],
@@ -37,8 +42,9 @@ export const VECTOR_SOURCES: VectorSource[] = [
   },
   {
     id: "place",
+    label: "Urban",
     file: "place.fgb",
     geomType: "polygon",
-    color: [100, 150, 200, 38],
+    color: [100, 150, 200, 90],
   },
 ];

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { LayerState } from "../hooks/useLayerState.js";
 import { SOURCES } from "../sources.js";
+import { VECTOR_SOURCES } from "../vectorSources.js";
 
 type BasemapKey = "dark" | "satellite";
 
@@ -446,7 +447,7 @@ export function LayerPanel({
       </div>
 
       {/* Overlays toggle */}
-      <div style={{ marginBottom: "12px" }}>
+      <div style={{ marginBottom: showOverlays ? "8px" : "12px" }}>
         <button
           type="button"
           onClick={onToggleOverlays}
@@ -464,6 +465,49 @@ export function LayerPanel({
           {showOverlays ? "Hide overlays" : "Show overlays"}
         </button>
       </div>
+
+      {/* Overlay legend */}
+      {showOverlays && (
+        <div style={{ marginBottom: "12px", paddingLeft: "4px" }}>
+          {VECTOR_SOURCES.map((src) => (
+            <div
+              key={src.id}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                marginBottom: "3px",
+              }}
+            >
+              {src.geomType === "line" ? (
+                <div
+                  style={{
+                    width: "18px",
+                    height: "3px",
+                    borderRadius: "2px",
+                    flexShrink: 0,
+                    background: `rgba(${src.color[0]},${src.color[1]},${src.color[2]},${(src.color[3] / 255).toFixed(2)})`,
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: "12px",
+                    height: "12px",
+                    borderRadius: "2px",
+                    flexShrink: 0,
+                    background: `rgba(${src.color[0]},${src.color[1]},${src.color[2]},${(src.color[3] / 255).toFixed(2)})`,
+                    border: `1px solid rgba(${src.color[0]},${src.color[1]},${src.color[2]},0.8)`,
+                  }}
+                />
+              )}
+              <span style={{ fontSize: "11px", color: "#555" }}>
+                {src.label}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Opacity slider */}
       <div style={{ marginBottom: "12px" }}>

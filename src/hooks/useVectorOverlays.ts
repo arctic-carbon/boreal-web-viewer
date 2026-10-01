@@ -3,6 +3,7 @@ import {
   GeoArrowPathLayer,
   GeoArrowSolidPolygonLayer,
 } from "@geoarrow/deck.gl-geoarrow";
+import wasmUrl from "@geoarrow/flatgeobuf-wasm/esm/index_bg.wasm?url";
 import { tableFromIPC } from "apache-arrow";
 import { useCallback, useRef, useState } from "react";
 import { VECTOR_SOURCES } from "../vectorSources.js";
@@ -23,7 +24,7 @@ async function getReadFn(): Promise<WasmReadFn> {
   }
   const mod = await import("@geoarrow/flatgeobuf-wasm/esm");
   if (!wasmInitPromise) {
-    wasmInitPromise = (mod.default as () => Promise<void>)();
+    wasmInitPromise = mod.default(wasmUrl) as unknown as Promise<void>;
   }
   await wasmInitPromise;
   wasmReadFlatGeobuf = mod.readFlatGeobuf as WasmReadFn;
