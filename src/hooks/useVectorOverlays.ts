@@ -12,7 +12,7 @@ import { VECTOR_SOURCES } from "../vectorSources.js";
 
 const BASE =
   import.meta.env.VITE_DATA_BASE_URL ??
-  "https://data.source.coop/luddaludwig/boreal-fire-carbon";
+  "https://data.source.coop/luddaludwig/denali-fire-risk";
 
 type WasmReadFn = (bytes: Uint8Array) => { intoIPCStream(): Uint8Array };
 
