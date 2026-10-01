@@ -440,30 +440,67 @@ export function LayerPanel({
         </label>
       </div>
 
-      {/* Colormap gradient with min/max labels */}
-      <div
-        style={{
-          height: "12px",
-          borderRadius: "2px",
-          background:
-            "linear-gradient(to right, #440154, #3b528b, #21918c, #5ec962, #b5de2b, #fde725)",
-          marginBottom: "4px",
-        }}
-      />
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          fontSize: "11px",
-          color: "#999",
-          marginBottom: "12px",
-        }}
-      >
-        <span>{fmtVal(state.rangeMin, state.selected)}</span>
-        <span>{state.selected.units}</span>
-        <span>{fmtVal(state.rangeMax, state.selected)}</span>
-      </div>
+      {/* Categorical legend or continuous colorbar */}
+      {state.selected.palette ? (
+        <div
+          style={{
+            maxHeight: "220px",
+            overflowY: "auto",
+            marginBottom: "12px",
+          }}
+        >
+          {state.selected.palette.map((cls) => (
+            <div
+              key={cls.value}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                marginBottom: "4px",
+              }}
+            >
+              <div
+                style={{
+                  width: "14px",
+                  height: "14px",
+                  borderRadius: "3px",
+                  flexShrink: 0,
+                  background: `rgb(${cls.color[0]},${cls.color[1]},${cls.color[2]})`,
+                }}
+              />
+              <span style={{ fontSize: "12px", color: "#444" }}>
+                {cls.label}
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <>
+          <div
+            style={{
+              height: "12px",
+              borderRadius: "2px",
+              background:
+                "linear-gradient(to right, #440154, #3b528b, #21918c, #5ec962, #b5de2b, #fde725)",
+              marginBottom: "4px",
+            }}
+          />
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              fontSize: "11px",
+              color: "#999",
+              marginBottom: "12px",
+            }}
+          >
+            <span>{fmtVal(state.rangeMin, state.selected)}</span>
+            <span>{state.selected.units}</span>
+            <span>{fmtVal(state.rangeMax, state.selected)}</span>
+          </div>
+        </>
+      )}
 
       {/* Match scale button — right panel in compare mode only */}
       {compareMode && isRight && (

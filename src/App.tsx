@@ -156,6 +156,17 @@ uniform rescaleByteUniforms {
   }),
 } as const satisfies ShaderModule<RescaleProps>;
 
+const CategoricalByte = {
+  name: "categoricalByte",
+  inject: {
+    "fs:DECKGL_FILTER_COLOR": /* glsl */ `
+      float rawValue = color.r * 255.0;
+      if (rawValue == 0.0) discard;
+      color.r = (rawValue + 0.5) / 256.0;
+    `,
+  },
+} as const satisfies ShaderModule;
+
 /** Set alpha to 1.0 (data has no alpha channel) */
 const SetAlpha1 = {
   name: "set-alpha-1",
@@ -178,8 +189,10 @@ function buildCOGLayer(
     return null;
   }
   const colormapTexture = state.colormapTexture;
-  const rescaleModule =
-    state.selected.dataType === "float32"
+  const isCategorical = Boolean(state.selected.palette);
+  const rescaleModule = isCategorical
+    ? CategoricalByte
+    : state.selected.dataType === "float32"
       ? RescaleFloat32
       : state.selected.dataType === "byte"
         ? RescaleByte
@@ -198,10 +211,12 @@ function buildCOGLayer(
         },
         {
           module: rescaleModule,
-          props: {
-            rangeMin: state.rangeMin,
-            rangeMax: state.rangeMax,
-          },
+          props: isCategorical
+            ? {}
+            : {
+                rangeMin: state.rangeMin,
+                rangeMax: state.rangeMax,
+              },
         },
         {
           module: Colormap,
@@ -388,11 +403,11 @@ export default function App() {
                 <div>
                   <span style={{ opacity: 0.6 }}>Value</span>{" "}
                   <strong>
-                    {(
-                      leftState.clickInfo.value *
-                      leftState.selected.displayScale
-                    ).toFixed(leftState.selected.displayDecimals ?? 0)}{" "}
-                    {leftState.selected.units}
+                    {leftState.selected.palette
+                      ? (leftState.selected.palette.find(
+                          (c) => c.value === leftState.clickInfo!.value,
+                        )?.label ?? `Class ${leftState.clickInfo.value}`)
+                      : `${(leftState.clickInfo.value * leftState.selected.displayScale).toFixed(leftState.selected.displayDecimals ?? 0)} ${leftState.selected.units}`}
                   </strong>
                 </div>
                 <div>
@@ -442,11 +457,11 @@ export default function App() {
                   <div>
                     <span style={{ opacity: 0.6 }}>Value</span>{" "}
                     <strong>
-                      {(
-                        rightState.clickInfo.value *
-                        rightState.selected.displayScale
-                      ).toFixed(rightState.selected.displayDecimals ?? 0)}{" "}
-                      {rightState.selected.units}
+                      {rightState.selected.palette
+                        ? (rightState.selected.palette.find(
+                            (c) => c.value === rightState.clickInfo!.value,
+                          )?.label ?? `Class ${rightState.clickInfo.value}`)
+                        : `${(rightState.clickInfo.value * rightState.selected.displayScale).toFixed(rightState.selected.displayDecimals ?? 0)} ${rightState.selected.units}`}
                     </strong>
                   </div>
                   <div>

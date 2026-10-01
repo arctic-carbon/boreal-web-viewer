@@ -294,6 +294,7 @@ export function useLayerState(initialIndex = 0): LayerState {
     setPendingAutoScale(null);
   }, [selectedIndex]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: rebuild texture when source palette changes
   useEffect(() => {
     if (!device) {
       return;
@@ -304,8 +305,22 @@ export function useLayerState(initialIndex = 0): LayerState {
       );
       return;
     }
-    setColormapTexture(createColormapTexture(device, colormap));
-  }, [device]);
+    if (selected.palette) {
+      const data = new Uint8ClampedArray(256 * 4);
+      for (const cls of selected.palette) {
+        const i = cls.value * 4;
+        data[i] = cls.color[0];
+        data[i + 1] = cls.color[1];
+        data[i + 2] = cls.color[2];
+        data[i + 3] = 255;
+      }
+      setColormapTexture(
+        createColormapTexture(device, new ImageData(data, 256, 1)),
+      );
+    } else {
+      setColormapTexture(createColormapTexture(device, colormap));
+    }
+  }, [device, selectedIndex]);
 
   const trackingGetTileData: typeof getTileData = useCallback(
     async (image, options) => {
