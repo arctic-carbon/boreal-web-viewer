@@ -15,7 +15,7 @@ export type LayerPanelProps = {
 };
 
 function fmtVal(raw: number, src: (typeof SOURCES)[number]): string {
-  return (raw * src.displayScale).toFixed(src.displayScale < 1 ? 2 : 0);
+  return (raw * src.displayScale).toFixed(src.displayDecimals ?? 0);
 }
 
 export function LayerPanel({

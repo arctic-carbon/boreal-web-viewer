@@ -10,6 +10,7 @@ export type LayerSource = {
   dataMax: number;
   units: string;
   displayScale: number;
+  displayDecimals?: number;
   dataType: "uint16" | "float32" | "byte";
 };
 
@@ -60,6 +61,7 @@ export const SOURCES: LayerSource[] = [
     title: "Fire risk",
     units: "",
     displayScale: 1,
+    displayDecimals: 2,
     dataMin: 0.02,
     dataMax: 0.74,
     dataType: "float32",

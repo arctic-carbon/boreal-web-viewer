@@ -97,19 +97,19 @@ uniform rescaleUniforms {
 } as const satisfies ShaderModule<RescaleProps>;
 
 const RescaleFloat32 = {
-  name: "rescale-float32",
+  name: "rescaleFloat32",
   fs: `\
-uniform rescaleUniforms {
+uniform rescaleFloat32Uniforms {
   float rangeMin;
   float rangeMax;
-} rescale;
+} rescaleFloat32;
 `,
   inject: {
     "fs:DECKGL_FILTER_COLOR": /* glsl */ `
       float rawValue = color.r;
       if (isnan(rawValue)) discard;
       float t = clamp(
-        (rawValue - rescale.rangeMin) / (rescale.rangeMax - rescale.rangeMin),
+        (rawValue - rescaleFloat32.rangeMin) / (rescaleFloat32.rangeMax - rescaleFloat32.rangeMin),
         0.0,
         1.0
       );
@@ -127,19 +127,19 @@ uniform rescaleUniforms {
 } as const satisfies ShaderModule<RescaleProps>;
 
 const RescaleByte = {
-  name: "rescale-byte",
+  name: "rescaleByte",
   fs: `\
-uniform rescaleUniforms {
+uniform rescaleByteUniforms {
   float rangeMin;
   float rangeMax;
-} rescale;
+} rescaleByte;
 `,
   inject: {
     "fs:DECKGL_FILTER_COLOR": /* glsl */ `
       float rawValue = color.r * 255.0;
       if (rawValue == 0.0) discard;
       float t = clamp(
-        (rawValue - rescale.rangeMin) / (rescale.rangeMax - rescale.rangeMin),
+        (rawValue - rescaleByte.rangeMin) / (rescaleByte.rangeMax - rescaleByte.rangeMin),
         0.0,
         1.0
       );
