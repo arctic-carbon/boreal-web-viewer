@@ -254,7 +254,8 @@ export default function App() {
 
   const leftState = useLayerState();
   const rightState = useLayerState(1);
-  const { showOverlays, toggleOverlays, overlayLayers } = useVectorOverlays();
+  const { showOverlays, toggleOverlays, makeOverlayLayers } =
+    useVectorOverlays();
 
   // Inject @keyframes spin CSS (project uses no CSS files)
   useEffect(() => {
@@ -388,7 +389,7 @@ export default function App() {
           onClick={leftState.handleMapClick}
         >
           <DeckGLOverlay
-            layers={[...(leftLayer ? [leftLayer] : []), ...overlayLayers]}
+            layers={[...(leftLayer ? [leftLayer] : []), ...makeOverlayLayers()]}
             // @ts-expect-error interleaved is valid for MapboxOverlay but missing from DeckProps
             interleaved
             onDeviceInitialized={leftState.setDevice}
@@ -442,7 +443,10 @@ export default function App() {
             onClick={rightState.handleMapClick}
           >
             <DeckGLOverlay
-              layers={[...(rightLayer ? [rightLayer] : []), ...overlayLayers]}
+              layers={[
+                ...(rightLayer ? [rightLayer] : []),
+                ...makeOverlayLayers(),
+              ]}
               // @ts-expect-error interleaved is valid for MapboxOverlay but missing from DeckProps
               interleaved
               onDeviceInitialized={rightState.setDevice}

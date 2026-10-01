@@ -6,7 +6,7 @@ import {
 import wasmUrl from "@geoarrow/flatgeobuf-wasm/esm/index_bg.wasm?url";
 import type { RecordBatch } from "apache-arrow";
 import { tableFromIPC } from "apache-arrow";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { VectorSource } from "../vectorSources.js";
 import { VECTOR_SOURCES } from "../vectorSources.js";
 
@@ -83,7 +83,7 @@ function buildLayers(sourceBatches: SourceBatches[]): Layer[] {
 export type VectorOverlayState = {
   showOverlays: boolean;
   toggleOverlays: () => void;
-  overlayLayers: Layer[];
+  makeOverlayLayers: () => Layer[];
 };
 
 export function useVectorOverlays(): VectorOverlayState {
@@ -93,9 +93,11 @@ export function useVectorOverlays(): VectorOverlayState {
     null,
   );
 
-  // Fresh layer instances built from cached batch data on each visibility change.
-  const overlayLayers = useMemo(
-    () => (showOverlays && loadedBatches ? buildLayers(loadedBatches) : []),
+  // Returns fresh layer instances on each call — each map gets its own set
+  // so deck.gl contexts don't share internal layer state.
+  const makeOverlayLayers = useCallback(
+    (): Layer[] =>
+      showOverlays && loadedBatches ? buildLayers(loadedBatches) : [],
     [showOverlays, loadedBatches],
   );
 
@@ -112,5 +114,5 @@ export function useVectorOverlays(): VectorOverlayState {
     });
   }, []);
 
-  return { showOverlays, toggleOverlays, overlayLayers };
+  return { showOverlays, toggleOverlays, makeOverlayLayers };
 }
