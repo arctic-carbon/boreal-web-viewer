@@ -21,6 +21,7 @@ export type LayerSource = {
   singleBand?: boolean;
   hideRangeControls?: boolean;
   palette?: LandcoverClass[];
+  colormapName?: "viridis" | "magma";
 };
 
 // Glasbey BW categorical palette from colorcet (b_glasbey_bw), entries 1–25
@@ -102,6 +103,7 @@ export const SOURCES: LayerSource[] = [
     dataMin: 0.02,
     dataMax: 0.74,
     dataType: "float32",
+    colormapName: "magma",
   },
   {
     id: "landcover",
