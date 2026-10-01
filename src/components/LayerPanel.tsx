@@ -12,6 +12,8 @@ export type LayerPanelProps = {
   compareMode?: boolean;
   onMatchScale?: () => void;
   matchScaleEnabled?: boolean;
+  showOverlays: boolean;
+  onToggleOverlays: () => void;
 };
 
 function fmtVal(raw: number, src: (typeof SOURCES)[number]): string {
@@ -26,6 +28,8 @@ export function LayerPanel({
   compareMode = false,
   onMatchScale,
   matchScaleEnabled = false,
+  showOverlays,
+  onToggleOverlays,
 }: LayerPanelProps) {
   const isRight = side === "right";
   const [minDraft, setMinDraft] = useState<string | null>(null);
@@ -438,6 +442,26 @@ export function LayerPanel({
           {basemap === "dark"
             ? "Switch to satellite basemap"
             : "Switch to dark basemap"}
+        </button>
+      </div>
+
+      {/* Overlays toggle */}
+      <div style={{ marginBottom: "12px" }}>
+        <button
+          type="button"
+          onClick={onToggleOverlays}
+          style={{
+            width: "100%",
+            padding: "6px 12px",
+            fontSize: "12px",
+            cursor: "pointer",
+            background: showOverlays ? "#3b528b" : "#f0f0f0",
+            color: showOverlays ? "white" : "#333",
+            border: "1px solid #ccc",
+            borderRadius: "4px",
+          }}
+        >
+          {showOverlays ? "Hide overlays" : "Show overlays"}
         </button>
       </div>
 
