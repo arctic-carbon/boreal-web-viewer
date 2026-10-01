@@ -5,7 +5,6 @@ import proj4 from "proj4";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { MapLayerMouseEvent } from "react-map-gl/maplibre";
 import colormap from "../colormap.js";
-import magma from "../magma.js";
 import type { LayerSource } from "../sources.js";
 import { SOURCES } from "../sources.js";
 
@@ -13,16 +12,15 @@ export type TileData = {
   height: number;
   width: number;
   texture: Texture;
-  rawData: Uint16Array | Float32Array | Uint8Array;
+  rawData: Uint16Array;
 };
 
 function padRows(
-  data: Uint16Array | Float32Array | Uint8Array,
+  data: Uint16Array,
   width: number,
   height: number,
-  bytesPerElement: number,
-): Uint16Array | Float32Array | Uint8Array {
-  const rowBytes = width * bytesPerElement;
+): Uint16Array {
+  const rowBytes = width * 2;
   const alignedRowBytes = Math.ceil(rowBytes / 4) * 4;
   if (alignedRowBytes === rowBytes) {
     return data;
@@ -34,12 +32,6 @@ function padRows(
       src.subarray(r * rowBytes, (r + 1) * rowBytes),
       r * alignedRowBytes,
     );
-  }
-  if (data instanceof Float32Array) {
-    return new Float32Array(dst.buffer);
-  }
-  if (data instanceof Uint8Array) {
-    return new Uint8Array(dst.buffer);
   }
   return new Uint16Array(dst.buffer);
 }
@@ -65,86 +57,14 @@ async function fetchTileWithRetry(
 
 export async function getTileData(
   image: GeoTIFF | Overview,
-  options: {
-    device: Device;
-    x: number;
-    y: number;
-    signal?: AbortSignal;
-    dataType?: "uint16" | "float32" | "byte";
-    band?: number;
-  },
+  options: { device: Device; x: number; y: number; signal?: AbortSignal },
 ): Promise<TileData> {
-  const { device, x, y, signal, dataType = "uint16", band = 0 } = options;
+  const { device, x, y, signal } = options;
   const tile = await fetchTileWithRetry(image, x, y, signal);
   const { width, height } = tile.array;
-
-  // For INTERLEAVE=PIXEL files the library returns a single flat array with
-  // all bands interleaved: [B0P0, B1P0, ..., BnP0, B0P1, ...]. We need to
-  // de-interleave to get a single-band array for the GPU texture.
-  let raw: Uint16Array | Float32Array | Uint8Array;
-  if ("data" in tile.array) {
-    const data = tile.array.data as Uint16Array | Float32Array | Uint8Array;
-    const numPixels = width * height;
-    const bandCount = Math.round(data.length / numPixels);
-    if (bandCount > 1) {
-      if (data instanceof Float32Array) {
-        const out = new Float32Array(numPixels);
-        for (let i = 0; i < numPixels; i++) {
-          out[i] = data[i * bandCount + band];
-        }
-        raw = out;
-      } else if (data instanceof Uint16Array) {
-        const out = new Uint16Array(numPixels);
-        for (let i = 0; i < numPixels; i++) {
-          out[i] = data[i * bandCount + band];
-        }
-        raw = out;
-      } else {
-        const out = new Uint8Array(numPixels);
-        for (let i = 0; i < numPixels; i++) {
-          out[i] = data[i * bandCount + band];
-        }
-        raw = out;
-      }
-    } else {
-      raw = data;
-    }
-  } else {
-    const bands = (
-      tile.array as { bands: (Uint16Array | Float32Array | Uint8Array)[] }
-    ).bands;
-    raw = bands[band] ?? bands[0]!;
-  }
-
-  if (dataType === "float32") {
-    const typed = new Float32Array(raw.buffer, raw.byteOffset, raw.length);
-    const aligned = padRows(typed, width, height, 4) as Float32Array;
-    const texture = device.createTexture({
-      data: aligned,
-      format: "r32float",
-      width,
-      height,
-      sampler: { minFilter: "nearest", magFilter: "nearest" },
-    });
-    return { texture, height, width, rawData: typed };
-  }
-
-  if (dataType === "byte") {
-    const typed = new Uint8Array(raw.buffer, raw.byteOffset, raw.length);
-    const aligned = padRows(typed, width, height, 1) as Uint8Array;
-    const texture = device.createTexture({
-      data: aligned,
-      format: "r8unorm",
-      width,
-      height,
-      sampler: { minFilter: "nearest", magFilter: "nearest" },
-    });
-    return { texture, height, width, rawData: typed };
-  }
-
-  // uint16 — existing path unchanged
-  const uint16 = new Uint16Array(raw.buffer, raw.byteOffset, raw.length);
-  const aligned = padRows(uint16, width, height, 2) as Uint16Array;
+  const data = "data" in tile.array ? tile.array.data : tile.array.bands[0]!;
+  const uint16 = new Uint16Array(data.buffer, data.byteOffset, data.length);
+  const aligned = padRows(uint16, width, height);
   const texture = device.createTexture({
     data: aligned,
     format: "r16unorm",
@@ -157,94 +77,9 @@ export async function getTileData(
 
 type LoadedTile = { data: unknown };
 
-function computeAutoScaleFloat32(
-  tiles: LoadedTile[],
-): { min: number; max: number } | null {
-  let dataMin = Number.POSITIVE_INFINITY;
-  let dataMax = Number.NEGATIVE_INFINITY;
-  for (const tile of tiles) {
-    const d = tile.data as TileData | null | undefined;
-    if (!d || !(d.rawData instanceof Float32Array)) {
-      continue;
-    }
-    for (const v of d.rawData) {
-      if (Number.isNaN(v)) {
-        continue;
-      }
-      if (v < dataMin) {
-        dataMin = v;
-      }
-      if (v > dataMax) {
-        dataMax = v;
-      }
-    }
-  }
-  if (!Number.isFinite(dataMin) || dataMin >= dataMax) {
-    return null;
-  }
-
-  const NUM_BINS = 1000;
-  const hist = new Uint32Array(NUM_BINS);
-  let total = 0;
-  const range = dataMax - dataMin;
-  for (const tile of tiles) {
-    const d = tile.data as TileData | null | undefined;
-    if (!d || !(d.rawData instanceof Float32Array)) {
-      continue;
-    }
-    for (const v of d.rawData) {
-      if (Number.isNaN(v)) {
-        continue;
-      }
-      hist[
-        Math.min(NUM_BINS - 1, Math.floor(((v - dataMin) / range) * NUM_BINS))
-      ]++;
-      total++;
-    }
-  }
-  if (total === 0) {
-    return null;
-  }
-
-  const p02 = total * 0.02;
-  const p98 = total * 0.98;
-  let cumulative = 0;
-  let minBin = 0;
-  let maxBin = NUM_BINS - 1;
-  let minSet = false;
-  for (let i = 0; i < NUM_BINS; i++) {
-    cumulative += hist[i]!;
-    if (!minSet && cumulative >= p02) {
-      minBin = i;
-      minSet = true;
-    }
-    if (cumulative >= p98) {
-      maxBin = i;
-      break;
-    }
-  }
-  const min = dataMin + (minBin / NUM_BINS) * range;
-  const max = dataMin + ((maxBin + 1) / NUM_BINS) * range;
-  if (min >= max) {
-    return null;
-  }
-  return { min, max };
-}
-
 function computeAutoScale(
   tiles: LoadedTile[],
 ): { min: number; max: number } | null {
-  const first = (tiles[0]?.data as TileData | null | undefined)?.rawData;
-  if (!first) {
-    return null;
-  }
-  if (first instanceof Float32Array) {
-    return computeAutoScaleFloat32(tiles);
-  }
-  if (!(first instanceof Uint16Array)) {
-    return null;
-  }
-
   const hist = new Uint32Array(65536);
   let total = 0;
   for (const tile of tiles) {
@@ -307,9 +142,6 @@ export type LayerState = {
   clickInfo: { lng: number; lat: number; value: number } | null;
   setClickInfo: (v: { lng: number; lat: number; value: number } | null) => void;
   pendingAutoScale: { min: number; max: number } | null;
-  selectedBand: number;
-  setBand: (b: number) => void;
-  bandCount: number;
   handleViewportLoad: (tiles: LoadedTile[]) => void;
   applyAutoScale: () => void;
   trackingGetTileData: typeof getTileData;
@@ -348,8 +180,6 @@ export function useLayerState(initialIndex = 0): LayerState {
     min: number;
     max: number;
   } | null>(null);
-  const [selectedBand, setSelectedBand] = useState(0);
-  const [bandCount, setBandCount] = useState(1);
 
   const loadingCountRef = useRef(0);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -370,13 +200,10 @@ export function useLayerState(initialIndex = 0): LayerState {
     setRangeMax(SOURCES[selectedIndex]!.dataMax);
     setMetadataLoaded(false);
     setClickInfo(null);
-    setSelectedBand(0);
-    setBandCount(1);
     shouldAutoScaleRef.current = true;
     setPendingAutoScale(null);
   }, [selectedIndex]);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: rebuild texture when source palette changes
   useEffect(() => {
     if (!device) {
       return;
@@ -387,23 +214,8 @@ export function useLayerState(initialIndex = 0): LayerState {
       );
       return;
     }
-    if (selected.palette) {
-      const data = new Uint8ClampedArray(256 * 4);
-      for (const cls of selected.palette) {
-        const i = cls.value * 4;
-        data[i] = cls.color[0];
-        data[i + 1] = cls.color[1];
-        data[i + 2] = cls.color[2];
-        data[i + 3] = 255;
-      }
-      setColormapTexture(
-        createColormapTexture(device, new ImageData(data, 256, 1)),
-      );
-    } else {
-      const cm = selected.colormapName === "magma" ? magma : colormap;
-      setColormapTexture(createColormapTexture(device, cm));
-    }
-  }, [device, selectedIndex]);
+    setColormapTexture(createColormapTexture(device, colormap));
+  }, [device]);
 
   const trackingGetTileData: typeof getTileData = useCallback(
     async (image, options) => {
@@ -413,11 +225,7 @@ export function useLayerState(initialIndex = 0): LayerState {
         setTilesLoading(true);
       }
       try {
-        return await getTileData(image, {
-          ...options,
-          dataType: selected.dataType,
-          band: selectedBand,
-        });
+        return await getTileData(image, options);
       } finally {
         loadingCountRef.current--;
         if (loadingCountRef.current === 0) {
@@ -426,7 +234,7 @@ export function useLayerState(initialIndex = 0): LayerState {
         }
       }
     },
-    [selected.dataType, selectedBand],
+    [],
   );
 
   const handleViewportLoad = useCallback((tiles: LoadedTile[]) => {
@@ -466,7 +274,6 @@ export function useLayerState(initialIndex = 0): LayerState {
       },
     ) => {
       setMetadataLoaded(true);
-      setBandCount(tiff.count ?? 1);
       const sourceProj = new proj4.Proj(
         options.projection as unknown as proj4.ProjectionDefinition,
       );
@@ -480,63 +287,35 @@ export function useLayerState(initialIndex = 0): LayerState {
     [],
   );
 
-  const handleMapClick = useCallback(
-    async (e: MapLayerMouseEvent) => {
-      const ref = geotiffRef.current;
-      if (!ref) {
-        return;
-      }
-      const { geotiff, toSourceCRS } = ref;
-      const [x, y] = toSourceCRS(e.lngLat.lng, e.lngLat.lat);
-      const [row, col] = geotiff.index(x, y);
-      if (row < 0 || row >= geotiff.height || col < 0 || col >= geotiff.width) {
+  const handleMapClick = useCallback(async (e: MapLayerMouseEvent) => {
+    const ref = geotiffRef.current;
+    if (!ref) {
+      return;
+    }
+    const { geotiff, toSourceCRS } = ref;
+    const [x, y] = toSourceCRS(e.lngLat.lng, e.lngLat.lat);
+    const [row, col] = geotiff.index(x, y);
+    if (row < 0 || row >= geotiff.height || col < 0 || col >= geotiff.width) {
+      setClickInfo(null);
+      return;
+    }
+    const tileX = Math.floor(col / geotiff.tileWidth);
+    const tileY = Math.floor(row / geotiff.tileHeight);
+    try {
+      const tile = await geotiff.fetchTile(tileX, tileY);
+      const px = col % geotiff.tileWidth;
+      const py = row % geotiff.tileHeight;
+      const arr = "data" in tile.array ? tile.array.data : tile.array.bands[0]!;
+      const value = arr[py * tile.array.width + px]!;
+      if (value === 0) {
         setClickInfo(null);
-        return;
+      } else {
+        setClickInfo({ lng: e.lngLat.lng, lat: e.lngLat.lat, value });
       }
-      const tileX = Math.floor(col / geotiff.tileWidth);
-      const tileY = Math.floor(row / geotiff.tileHeight);
-      try {
-        const tile = await geotiff.fetchTile(tileX, tileY);
-        const px = col % geotiff.tileWidth;
-        const py = row % geotiff.tileHeight;
-        let value: number;
-        if ("data" in tile.array) {
-          const data = tile.array.data as
-            | Uint8Array
-            | Uint16Array
-            | Float32Array;
-          const bandCount = Math.round(
-            data.length / (tile.array.width * tile.array.height),
-          );
-          const idx =
-            bandCount > 1
-              ? py * tile.array.width * bandCount +
-                px * bandCount +
-                selectedBand
-              : py * tile.array.width + px;
-          value = data[idx]!;
-        } else {
-          const bands = (
-            tile.array as {
-              bands: (Uint8Array | Uint16Array | Float32Array)[];
-            }
-          ).bands;
-          const arr = bands[selectedBand] ?? bands[0]!;
-          value = arr[py * tile.array.width + px]!;
-        }
-        const isNodata =
-          selected.dataType === "float32" ? Number.isNaN(value) : value === 0;
-        if (isNodata) {
-          setClickInfo(null);
-        } else {
-          setClickInfo({ lng: e.lngLat.lng, lat: e.lngLat.lat, value });
-        }
-      } catch {
-        setClickInfo(null);
-      }
-    },
-    [selected.dataType, selectedBand],
-  );
+    } catch {
+      setClickInfo(null);
+    }
+  }, []);
 
   return {
     selectedIndex,
@@ -559,9 +338,6 @@ export function useLayerState(initialIndex = 0): LayerState {
     clickInfo,
     setClickInfo,
     pendingAutoScale,
-    selectedBand,
-    setBand: setSelectedBand,
-    bandCount,
     handleViewportLoad,
     applyAutoScale,
     trackingGetTileData,

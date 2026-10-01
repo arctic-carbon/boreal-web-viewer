@@ -35,28 +35,6 @@ pnpm check         # biome lint + format check (run before committing)
 pnpm check:fix     # auto-fix lint + format issues
 ```
 
-## Local development with local imagery
-
-To use local COG files instead of source.coop, two things are needed:
-
-**1. Start a CORS-enabled file server** (separate terminal, before `pnpm dev`):
-
-```bash
-npx serve --cors /Users/sludwig/Documents/Python/viz -l 8080
-```
-
-**2. Create `.env.local`** in the project root (gitignored — do not commit):
-
-```
-VITE_DATA_BASE_URL=http://localhost:8080
-```
-
-When `VITE_DATA_BASE_URL` is absent, `sources.ts` falls back to source.coop automatically. Delete or rename `.env.local` to switch back.
-
-**Prerequisites:** All files in `/viz` must be Cloud-Optimized GeoTIFFs (COGs) reprojected to WGS84 (EPSG:4326). This conversion is done outside the project with GDAL.
-
-**Render pipeline note:** `uint16` layers (AGC, BGC) render correctly. `float32` (fire_risk) and `byte` (landcover) layers appear but render with incorrect colors — Phase 2 shader support is required for those.
-
 ## Render pipeline (so you don't reinvent it)
 
 1. Tiles fetched via HTTP range requests (SourceHttp), `cache: "no-store"` is set intentionally to bypass Chrome's single-writer cache lock that otherwise serializes tile fetches.
