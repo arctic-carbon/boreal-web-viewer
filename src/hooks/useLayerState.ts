@@ -157,13 +157,94 @@ export async function getTileData(
 
 type LoadedTile = { data: unknown };
 
+function computeAutoScaleFloat32(
+  tiles: LoadedTile[],
+): { min: number; max: number } | null {
+  let dataMin = Number.POSITIVE_INFINITY;
+  let dataMax = Number.NEGATIVE_INFINITY;
+  for (const tile of tiles) {
+    const d = tile.data as TileData | null | undefined;
+    if (!d || !(d.rawData instanceof Float32Array)) {
+      continue;
+    }
+    for (const v of d.rawData) {
+      if (Number.isNaN(v)) {
+        continue;
+      }
+      if (v < dataMin) {
+        dataMin = v;
+      }
+      if (v > dataMax) {
+        dataMax = v;
+      }
+    }
+  }
+  if (!Number.isFinite(dataMin) || dataMin >= dataMax) {
+    return null;
+  }
+
+  const NUM_BINS = 1000;
+  const hist = new Uint32Array(NUM_BINS);
+  let total = 0;
+  const range = dataMax - dataMin;
+  for (const tile of tiles) {
+    const d = tile.data as TileData | null | undefined;
+    if (!d || !(d.rawData instanceof Float32Array)) {
+      continue;
+    }
+    for (const v of d.rawData) {
+      if (Number.isNaN(v)) {
+        continue;
+      }
+      hist[
+        Math.min(NUM_BINS - 1, Math.floor(((v - dataMin) / range) * NUM_BINS))
+      ]++;
+      total++;
+    }
+  }
+  if (total === 0) {
+    return null;
+  }
+
+  const p02 = total * 0.02;
+  const p98 = total * 0.98;
+  let cumulative = 0;
+  let minBin = 0;
+  let maxBin = NUM_BINS - 1;
+  let minSet = false;
+  for (let i = 0; i < NUM_BINS; i++) {
+    cumulative += hist[i]!;
+    if (!minSet && cumulative >= p02) {
+      minBin = i;
+      minSet = true;
+    }
+    if (cumulative >= p98) {
+      maxBin = i;
+      break;
+    }
+  }
+  const min = dataMin + (minBin / NUM_BINS) * range;
+  const max = dataMin + ((maxBin + 1) / NUM_BINS) * range;
+  if (min >= max) {
+    return null;
+  }
+  return { min, max };
+}
+
 function computeAutoScale(
   tiles: LoadedTile[],
 ): { min: number; max: number } | null {
   const first = (tiles[0]?.data as TileData | null | undefined)?.rawData;
-  if (!first || !(first instanceof Uint16Array)) {
+  if (!first) {
     return null;
   }
+  if (first instanceof Float32Array) {
+    return computeAutoScaleFloat32(tiles);
+  }
+  if (!(first instanceof Uint16Array)) {
+    return null;
+  }
+
   const hist = new Uint32Array(65536);
   let total = 0;
   for (const tile of tiles) {
