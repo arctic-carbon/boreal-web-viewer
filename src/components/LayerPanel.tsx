@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import type { LayerState } from "../hooks/useLayerState.js";
 import { SOURCES } from "../sources.js";
-import { VECTOR_SOURCES } from "../vectorSources.js";
 
 type BasemapKey = "dark" | "satellite";
 
@@ -13,12 +12,10 @@ export type LayerPanelProps = {
   compareMode?: boolean;
   onMatchScale?: () => void;
   matchScaleEnabled?: boolean;
-  showOverlays: boolean;
-  onToggleOverlays: () => void;
 };
 
 function fmtVal(raw: number, src: (typeof SOURCES)[number]): string {
-  return (raw * src.displayScale).toFixed(src.displayDecimals ?? 0);
+  return (raw * src.displayScale).toFixed(src.displayScale < 1 ? 2 : 0);
 }
 
 export function LayerPanel({
@@ -29,8 +26,6 @@ export function LayerPanel({
   compareMode = false,
   onMatchScale,
   matchScaleEnabled = false,
-  showOverlays,
-  onToggleOverlays,
 }: LayerPanelProps) {
   const isRight = side === "right";
   const [minDraft, setMinDraft] = useState<string | null>(null);
@@ -186,244 +181,180 @@ export function LayerPanel({
         </select>
       </div>
 
-      {/* Band selector — shown for multi-band layers where band selection is meaningful */}
-      {state.bandCount > 1 && !state.selected.singleBand && (
-        <div style={{ marginBottom: "12px" }}>
-          <p style={{ margin: "0 0 6px 0", fontSize: "12px", color: "#666" }}>
-            Band
-          </p>
-          {state.selected.bandLabels ? (
-            <select
-              value={state.selectedBand}
-              onChange={(e) => state.setBand(Number(e.target.value))}
-              style={{
-                width: "100%",
-                padding: "6px 12px",
-                fontSize: "12px",
-                background: "#f0f0f0",
-                border: "1px solid #ccc",
-                borderRadius: "4px",
-                cursor: "pointer",
-              }}
-            >
-              {state.selected.bandLabels.map((label, i) => (
-                <option key={label} value={i}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
-              {Array.from({ length: state.bandCount }, (_, i) => i + 1).map(
-                (band) => (
-                  <button
-                    key={band}
-                    type="button"
-                    onClick={() => state.setBand(band - 1)}
-                    style={{
-                      padding: "2px 8px",
-                      borderRadius: "4px",
-                      border: "1px solid #ccc",
-                      background:
-                        state.selectedBand === band - 1
-                          ? "#333"
-                          : "transparent",
-                      color: state.selectedBand === band - 1 ? "#fff" : "#666",
-                      cursor: "pointer",
-                      fontSize: "12px",
-                    }}
-                  >
-                    {band}
-                  </button>
-                ),
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Min control */}
-      {!state.selected.hideRangeControls && (
-        <div style={{ marginBottom: "8px" }}>
-          {compareMode ? (
-            <>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  marginBottom: "2px",
-                  fontSize: "12px",
-                  color: "#666",
-                }}
-              >
-                <span>Min</span>
-                <input
-                  type="number"
-                  value={minDraft ?? fmtVal(state.rangeMin, state.selected)}
-                  onChange={(e) => setMinDraft(e.target.value)}
-                  onBlur={() => commitMin(minDraft)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      commitMin(minDraft);
-                    }
-                  }}
-                  style={{
-                    width: "70px",
-                    fontSize: "12px",
-                    padding: "2px 4px",
-                    border: "1px solid #ccc",
-                    borderRadius: "4px",
-                  }}
-                />
-                <span>{state.selected.units}</span>
-              </div>
-              <input
-                type="range"
-                min={state.selected.dataMin}
-                max={state.selected.dataMax}
-                step={1}
-                value={state.rangeMin}
-                onChange={(e) =>
-                  state.setRangeMin(
-                    Math.min(parseFloat(e.target.value), state.rangeMax - 1),
-                  )
-                }
-                aria-label="Minimum value"
-                style={{ width: "100%", cursor: "pointer" }}
-              />
-            </>
-          ) : (
-            <label
+      <div style={{ marginBottom: "8px" }}>
+        {compareMode ? (
+          <>
+            <div
               style={{
-                display: "block",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                marginBottom: "2px",
                 fontSize: "12px",
                 color: "#666",
-                marginBottom: "2px",
               }}
             >
-              Min: {fmtVal(state.rangeMin, state.selected)}{" "}
-              {state.selected.units}
+              <span>Min</span>
               <input
-                type="range"
-                min={state.selected.dataMin}
-                max={state.selected.dataMax}
-                step={1}
-                value={state.rangeMin}
-                onChange={(e) =>
-                  state.setRangeMin(
-                    Math.min(parseFloat(e.target.value), state.rangeMax - 1),
-                  )
-                }
-                style={{ width: "100%", cursor: "pointer" }}
-              />
-            </label>
-          )}
-        </div>
-      )}
-
-      {/* Max control */}
-      {!state.selected.hideRangeControls && (
-        <div style={{ marginBottom: "8px" }}>
-          {compareMode ? (
-            <>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  marginBottom: "2px",
-                  fontSize: "12px",
-                  color: "#666",
+                type="number"
+                value={minDraft ?? fmtVal(state.rangeMin, state.selected)}
+                onChange={(e) => setMinDraft(e.target.value)}
+                onBlur={() => commitMin(minDraft)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    commitMin(minDraft);
+                  }
                 }}
-              >
-                <span>Max</span>
-                <input
-                  type="number"
-                  value={maxDraft ?? fmtVal(state.rangeMax, state.selected)}
-                  onChange={(e) => setMaxDraft(e.target.value)}
-                  onBlur={() => commitMax(maxDraft)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      commitMax(maxDraft);
-                    }
-                  }}
-                  style={{
-                    width: "70px",
-                    fontSize: "12px",
-                    padding: "2px 4px",
-                    border: "1px solid #ccc",
-                    borderRadius: "4px",
-                  }}
-                />
-                <span>{state.selected.units}</span>
-              </div>
-              <input
-                type="range"
-                min={state.selected.dataMin}
-                max={state.selected.dataMax}
-                step={1}
-                value={state.rangeMax}
-                onChange={(e) =>
-                  state.setRangeMax(
-                    Math.max(parseFloat(e.target.value), state.rangeMin + 1),
-                  )
-                }
-                aria-label="Maximum value"
-                style={{ width: "100%", cursor: "pointer" }}
+                style={{
+                  width: "70px",
+                  fontSize: "12px",
+                  padding: "2px 4px",
+                  border: "1px solid #ccc",
+                  borderRadius: "4px",
+                }}
               />
-            </>
-          ) : (
-            <label
-              style={{
-                display: "block",
-                fontSize: "12px",
-                color: "#666",
-                marginBottom: "2px",
-              }}
-            >
-              Max: {fmtVal(state.rangeMax, state.selected)}{" "}
-              {state.selected.units}
-              <input
-                type="range"
-                min={state.selected.dataMin}
-                max={state.selected.dataMax}
-                step={1}
-                value={state.rangeMax}
-                onChange={(e) =>
-                  state.setRangeMax(
-                    Math.max(parseFloat(e.target.value), state.rangeMin + 1),
-                  )
-                }
-                style={{ width: "100%", cursor: "pointer" }}
-              />
-            </label>
-          )}
-        </div>
-      )}
-
-      {/* Auto-scale button */}
-      {!state.selected.hideRangeControls && (
-        <div style={{ marginBottom: "12px" }}>
-          <button
-            type="button"
-            onClick={state.applyAutoScale}
-            disabled={state.pendingAutoScale === null}
+              <span>{state.selected.units}</span>
+            </div>
+            <input
+              type="range"
+              min={state.selected.dataMin}
+              max={state.selected.dataMax}
+              step={1}
+              value={state.rangeMin}
+              onChange={(e) =>
+                state.setRangeMin(
+                  Math.min(parseFloat(e.target.value), state.rangeMax - 1),
+                )
+              }
+              aria-label="Minimum value"
+              style={{ width: "100%", cursor: "pointer" }}
+            />
+          </>
+        ) : (
+          <label
             style={{
-              width: "100%",
-              padding: "6px 12px",
+              display: "block",
               fontSize: "12px",
-              cursor: state.pendingAutoScale === null ? "default" : "pointer",
-              background: "#f0f0f0",
-              border: "1px solid #ccc",
-              borderRadius: "4px",
-              opacity: state.pendingAutoScale === null ? 0.5 : 1,
+              color: "#666",
+              marginBottom: "2px",
             }}
           >
-            Auto-scale
-          </button>
-        </div>
-      )}
+            Min: {fmtVal(state.rangeMin, state.selected)} {state.selected.units}
+            <input
+              type="range"
+              min={state.selected.dataMin}
+              max={state.selected.dataMax}
+              step={1}
+              value={state.rangeMin}
+              onChange={(e) =>
+                state.setRangeMin(
+                  Math.min(parseFloat(e.target.value), state.rangeMax - 1),
+                )
+              }
+              style={{ width: "100%", cursor: "pointer" }}
+            />
+          </label>
+        )}
+      </div>
+
+      {/* Max control */}
+      <div style={{ marginBottom: "8px" }}>
+        {compareMode ? (
+          <>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                marginBottom: "2px",
+                fontSize: "12px",
+                color: "#666",
+              }}
+            >
+              <span>Max</span>
+              <input
+                type="number"
+                value={maxDraft ?? fmtVal(state.rangeMax, state.selected)}
+                onChange={(e) => setMaxDraft(e.target.value)}
+                onBlur={() => commitMax(maxDraft)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    commitMax(maxDraft);
+                  }
+                }}
+                style={{
+                  width: "70px",
+                  fontSize: "12px",
+                  padding: "2px 4px",
+                  border: "1px solid #ccc",
+                  borderRadius: "4px",
+                }}
+              />
+              <span>{state.selected.units}</span>
+            </div>
+            <input
+              type="range"
+              min={state.selected.dataMin}
+              max={state.selected.dataMax}
+              step={1}
+              value={state.rangeMax}
+              onChange={(e) =>
+                state.setRangeMax(
+                  Math.max(parseFloat(e.target.value), state.rangeMin + 1),
+                )
+              }
+              aria-label="Maximum value"
+              style={{ width: "100%", cursor: "pointer" }}
+            />
+          </>
+        ) : (
+          <label
+            style={{
+              display: "block",
+              fontSize: "12px",
+              color: "#666",
+              marginBottom: "2px",
+            }}
+          >
+            Max: {fmtVal(state.rangeMax, state.selected)} {state.selected.units}
+            <input
+              type="range"
+              min={state.selected.dataMin}
+              max={state.selected.dataMax}
+              step={1}
+              value={state.rangeMax}
+              onChange={(e) =>
+                state.setRangeMax(
+                  Math.max(parseFloat(e.target.value), state.rangeMin + 1),
+                )
+              }
+              style={{ width: "100%", cursor: "pointer" }}
+            />
+          </label>
+        )}
+      </div>
+
+      {/* Auto-scale button */}
+      <div style={{ marginBottom: "12px" }}>
+        <button
+          type="button"
+          onClick={state.applyAutoScale}
+          disabled={state.pendingAutoScale === null}
+          style={{
+            width: "100%",
+            padding: "6px 12px",
+            fontSize: "12px",
+            cursor: state.pendingAutoScale === null ? "default" : "pointer",
+            background: "#f0f0f0",
+            border: "1px solid #ccc",
+            borderRadius: "4px",
+            opacity: state.pendingAutoScale === null ? 0.5 : 1,
+          }}
+        >
+          Auto-scale
+        </button>
+      </div>
 
       {/* Basemap toggle */}
       <div style={{ marginBottom: "12px" }}>
@@ -445,69 +376,6 @@ export function LayerPanel({
             : "Switch to dark basemap"}
         </button>
       </div>
-
-      {/* Overlays toggle */}
-      <div style={{ marginBottom: showOverlays ? "8px" : "12px" }}>
-        <button
-          type="button"
-          onClick={onToggleOverlays}
-          style={{
-            width: "100%",
-            padding: "6px 12px",
-            fontSize: "12px",
-            cursor: "pointer",
-            background: showOverlays ? "#3b528b" : "#f0f0f0",
-            color: showOverlays ? "white" : "#333",
-            border: "1px solid #ccc",
-            borderRadius: "4px",
-          }}
-        >
-          {showOverlays ? "Hide overlays" : "Show overlays"}
-        </button>
-      </div>
-
-      {/* Overlay legend */}
-      {showOverlays && (
-        <div style={{ marginBottom: "12px", paddingLeft: "4px" }}>
-          {VECTOR_SOURCES.map((src) => (
-            <div
-              key={src.id}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-                marginBottom: "3px",
-              }}
-            >
-              {src.geomType === "line" ? (
-                <div
-                  style={{
-                    width: "18px",
-                    height: "3px",
-                    borderRadius: "2px",
-                    flexShrink: 0,
-                    background: `rgba(${src.color[0]},${src.color[1]},${src.color[2]},${(src.color[3] / 255).toFixed(2)})`,
-                  }}
-                />
-              ) : (
-                <div
-                  style={{
-                    width: "12px",
-                    height: "12px",
-                    borderRadius: "2px",
-                    flexShrink: 0,
-                    background: `rgba(${src.color[0]},${src.color[1]},${src.color[2]},${(src.color[3] / 255).toFixed(2)})`,
-                    border: `1px solid rgba(${src.color[0]},${src.color[1]},${src.color[2]},0.8)`,
-                  }}
-                />
-              )}
-              <span style={{ fontSize: "11px", color: "#555" }}>
-                {src.label}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* Opacity slider */}
       <div style={{ marginBottom: "12px" }}>
@@ -532,69 +400,30 @@ export function LayerPanel({
         </label>
       </div>
 
-      {/* Categorical legend or continuous colorbar */}
-      {state.selected.palette ? (
-        <div
-          style={{
-            maxHeight: "220px",
-            overflowY: "auto",
-            marginBottom: "12px",
-          }}
-        >
-          {state.selected.palette.map((cls) => (
-            <div
-              key={cls.value}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                marginBottom: "4px",
-              }}
-            >
-              <div
-                style={{
-                  width: "14px",
-                  height: "14px",
-                  borderRadius: "3px",
-                  flexShrink: 0,
-                  background: `rgb(${cls.color[0]},${cls.color[1]},${cls.color[2]})`,
-                }}
-              />
-              <span style={{ fontSize: "12px", color: "#444" }}>
-                {cls.label}
-              </span>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <>
-          <div
-            style={{
-              height: "12px",
-              borderRadius: "2px",
-              background:
-                state.selected.colormapName === "magma"
-                  ? "linear-gradient(to right, #000003, #3b0f70, #8c2981, #dd4668, #fd9f6c, #fbfdbf)"
-                  : "linear-gradient(to right, #440154, #3b528b, #21918c, #5ec962, #b5de2b, #fde725)",
-              marginBottom: "4px",
-            }}
-          />
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              fontSize: "11px",
-              color: "#999",
-              marginBottom: "12px",
-            }}
-          >
-            <span>{fmtVal(state.rangeMin, state.selected)}</span>
-            <span>{state.selected.units}</span>
-            <span>{fmtVal(state.rangeMax, state.selected)}</span>
-          </div>
-        </>
-      )}
+      {/* Colormap gradient with min/max labels */}
+      <div
+        style={{
+          height: "12px",
+          borderRadius: "2px",
+          background:
+            "linear-gradient(to right, #440154, #3b528b, #21918c, #5ec962, #b5de2b, #fde725)",
+          marginBottom: "4px",
+        }}
+      />
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          fontSize: "11px",
+          color: "#999",
+          marginBottom: "12px",
+        }}
+      >
+        <span>{fmtVal(state.rangeMin, state.selected)}</span>
+        <span>{state.selected.units}</span>
+        <span>{fmtVal(state.rangeMax, state.selected)}</span>
+      </div>
 
       {/* Match scale button — right panel in compare mode only */}
       {compareMode && isRight && (

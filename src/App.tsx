@@ -15,7 +15,6 @@ import { Map as MaplibreMap, Popup, useControl } from "react-map-gl/maplibre";
 import { LayerPanel } from "./components/LayerPanel.js";
 import type { TileData } from "./hooks/useLayerState.js";
 import { useLayerState } from "./hooks/useLayerState.js";
-import { useVectorOverlays } from "./hooks/useVectorOverlays.js";
 
 function DeckGLOverlay(props: DeckProps) {
   const overlay = useControl<MapboxOverlay>(() => new MapboxOverlay(props));
@@ -97,77 +96,6 @@ uniform rescaleUniforms {
   }),
 } as const satisfies ShaderModule<RescaleProps>;
 
-const RescaleFloat32 = {
-  name: "rescaleFloat32",
-  fs: `\
-uniform rescaleFloat32Uniforms {
-  float rangeMin;
-  float rangeMax;
-} rescaleFloat32;
-`,
-  inject: {
-    "fs:DECKGL_FILTER_COLOR": /* glsl */ `
-      float rawValue = color.r;
-      if (isnan(rawValue)) discard;
-      float t = clamp(
-        (rawValue - rescaleFloat32.rangeMin) / (rescaleFloat32.rangeMax - rescaleFloat32.rangeMin),
-        0.0,
-        1.0
-      );
-      color.r = t;
-    `,
-  },
-  uniformTypes: {
-    rangeMin: "f32",
-    rangeMax: "f32",
-  },
-  getUniforms: (props: Partial<RescaleProps>) => ({
-    rangeMin: props.rangeMin ?? 0,
-    rangeMax: props.rangeMax ?? 1,
-  }),
-} as const satisfies ShaderModule<RescaleProps>;
-
-const RescaleByte = {
-  name: "rescaleByte",
-  fs: `\
-uniform rescaleByteUniforms {
-  float rangeMin;
-  float rangeMax;
-} rescaleByte;
-`,
-  inject: {
-    "fs:DECKGL_FILTER_COLOR": /* glsl */ `
-      float rawValue = color.r * 255.0;
-      if (rawValue == 0.0) discard;
-      float t = clamp(
-        (rawValue - rescaleByte.rangeMin) / (rescaleByte.rangeMax - rescaleByte.rangeMin),
-        0.0,
-        1.0
-      );
-      color.r = t;
-    `,
-  },
-  uniformTypes: {
-    rangeMin: "f32",
-    rangeMax: "f32",
-  },
-  getUniforms: (props: Partial<RescaleProps>) => ({
-    rangeMin: props.rangeMin ?? 0,
-    rangeMax: props.rangeMax ?? 255,
-  }),
-} as const satisfies ShaderModule<RescaleProps>;
-
-const CategoricalByte = {
-  name: "categoricalByte",
-  inject: {
-    "fs:DECKGL_FILTER_COLOR": /* glsl */ `
-      float rawValue = color.r * 255.0;
-      if (rawValue == 0.0) discard;
-      color.r = (rawValue + 0.5) / 256.0;
-    `,
-  },
-} as const satisfies ShaderModule;
-
 /** Set alpha to 1.0 (data has no alpha channel) */
 const SetAlpha1 = {
   name: "set-alpha-1",
@@ -190,16 +118,8 @@ function buildCOGLayer(
     return null;
   }
   const colormapTexture = state.colormapTexture;
-  const isCategorical = Boolean(state.selected.palette);
-  const rescaleModule = isCategorical
-    ? CategoricalByte
-    : state.selected.dataType === "float32"
-      ? RescaleFloat32
-      : state.selected.dataType === "byte"
-        ? RescaleByte
-        : Rescale;
   return new COGLayer<TileData>({
-    id: `${id}-b${state.selectedBand}`,
+    id,
     opacity: state.dataOpacity,
     geotiff: state.selected.url,
     maxRequests: MAX_TILE_REQUESTS,
@@ -211,13 +131,11 @@ function buildCOGLayer(
           props: { textureName: tileData.texture },
         },
         {
-          module: rescaleModule,
-          props: isCategorical
-            ? {}
-            : {
-                rangeMin: state.rangeMin,
-                rangeMax: state.rangeMax,
-              },
+          module: Rescale,
+          props: {
+            rangeMin: state.rangeMin,
+            rangeMax: state.rangeMax,
+          },
         },
         {
           module: Colormap,
@@ -254,8 +172,6 @@ export default function App() {
 
   const leftState = useLayerState();
   const rightState = useLayerState(1);
-  const { showOverlays, toggleOverlays, makeOverlayLayers } =
-    useVectorOverlays();
 
   // Inject @keyframes spin CSS (project uses no CSS files)
   useEffect(() => {
@@ -389,7 +305,7 @@ export default function App() {
           onClick={leftState.handleMapClick}
         >
           <DeckGLOverlay
-            layers={[...(leftLayer ? [leftLayer] : []), ...makeOverlayLayers()]}
+            layers={leftLayer ? [leftLayer] : []}
             // @ts-expect-error interleaved is valid for MapboxOverlay but missing from DeckProps
             interleaved
             onDeviceInitialized={leftState.setDevice}
@@ -406,11 +322,11 @@ export default function App() {
                 <div>
                   <span style={{ opacity: 0.6 }}>Value</span>{" "}
                   <strong>
-                    {leftState.selected.palette
-                      ? (leftState.selected.palette.find(
-                          (c) => c.value === leftState.clickInfo!.value,
-                        )?.label ?? `Class ${leftState.clickInfo.value}`)
-                      : `${(leftState.clickInfo.value * leftState.selected.displayScale).toFixed(leftState.selected.displayDecimals ?? 0)} ${leftState.selected.units}`}
+                    {(
+                      leftState.clickInfo.value *
+                      leftState.selected.displayScale
+                    ).toFixed(leftState.selected.displayScale < 1 ? 2 : 0)}{" "}
+                    {leftState.selected.units}
                   </strong>
                 </div>
                 <div>
@@ -443,10 +359,7 @@ export default function App() {
             onClick={rightState.handleMapClick}
           >
             <DeckGLOverlay
-              layers={[
-                ...(rightLayer ? [rightLayer] : []),
-                ...makeOverlayLayers(),
-              ]}
+              layers={rightLayer ? [rightLayer] : []}
               // @ts-expect-error interleaved is valid for MapboxOverlay but missing from DeckProps
               interleaved
               onDeviceInitialized={rightState.setDevice}
@@ -463,11 +376,13 @@ export default function App() {
                   <div>
                     <span style={{ opacity: 0.6 }}>Value</span>{" "}
                     <strong>
-                      {rightState.selected.palette
-                        ? (rightState.selected.palette.find(
-                            (c) => c.value === rightState.clickInfo!.value,
-                          )?.label ?? `Class ${rightState.clickInfo.value}`)
-                        : `${(rightState.clickInfo.value * rightState.selected.displayScale).toFixed(rightState.selected.displayDecimals ?? 0)} ${rightState.selected.units}`}
+                      {(
+                        rightState.clickInfo.value *
+                        rightState.selected.displayScale
+                      ).toFixed(
+                        rightState.selected.displayScale < 1 ? 2 : 0,
+                      )}{" "}
+                      {rightState.selected.units}
                     </strong>
                   </div>
                   <div>
@@ -611,8 +526,6 @@ export default function App() {
         onToggleBasemap={toggleBasemap}
         side={isCompare ? "left" : undefined}
         compareMode={isCompare}
-        showOverlays={showOverlays}
-        onToggleOverlays={toggleOverlays}
       />
 
       {/* Right panel — compare mode only */}
@@ -625,8 +538,6 @@ export default function App() {
           compareMode
           onMatchScale={handleMatchScale}
           matchScaleEnabled={matchScaleEnabled}
-          showOverlays={showOverlays}
-          onToggleOverlays={toggleOverlays}
         />
       )}
 
