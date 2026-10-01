@@ -3,7 +3,7 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [react()],
-  base: "/boreal-web-viewer/",
+  base: "/denali-fire-risk/",
   worker: { format: "es" },
   // @developmentseed/geotiff spawns a decoder worker via
   // `new Worker(new URL("./worker.js", import.meta.url))` from inside the
