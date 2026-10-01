@@ -15,6 +15,7 @@ import { Map as MaplibreMap, Popup, useControl } from "react-map-gl/maplibre";
 import { LayerPanel } from "./components/LayerPanel.js";
 import type { TileData } from "./hooks/useLayerState.js";
 import { useLayerState } from "./hooks/useLayerState.js";
+import { useVectorOverlays } from "./hooks/useVectorOverlays.js";
 
 function DeckGLOverlay(props: DeckProps) {
   const overlay = useControl<MapboxOverlay>(() => new MapboxOverlay(props));
@@ -253,6 +254,7 @@ export default function App() {
 
   const leftState = useLayerState();
   const rightState = useLayerState(1);
+  const { showOverlays, toggleOverlays, overlayLayers } = useVectorOverlays();
 
   // Inject @keyframes spin CSS (project uses no CSS files)
   useEffect(() => {
@@ -386,7 +388,7 @@ export default function App() {
           onClick={leftState.handleMapClick}
         >
           <DeckGLOverlay
-            layers={leftLayer ? [leftLayer] : []}
+            layers={[...(leftLayer ? [leftLayer] : []), ...overlayLayers]}
             // @ts-expect-error interleaved is valid for MapboxOverlay but missing from DeckProps
             interleaved
             onDeviceInitialized={leftState.setDevice}
@@ -440,7 +442,7 @@ export default function App() {
             onClick={rightState.handleMapClick}
           >
             <DeckGLOverlay
-              layers={rightLayer ? [rightLayer] : []}
+              layers={[...(rightLayer ? [rightLayer] : []), ...overlayLayers]}
               // @ts-expect-error interleaved is valid for MapboxOverlay but missing from DeckProps
               interleaved
               onDeviceInitialized={rightState.setDevice}
@@ -605,6 +607,8 @@ export default function App() {
         onToggleBasemap={toggleBasemap}
         side={isCompare ? "left" : undefined}
         compareMode={isCompare}
+        showOverlays={showOverlays}
+        onToggleOverlays={toggleOverlays}
       />
 
       {/* Right panel — compare mode only */}
@@ -617,6 +621,8 @@ export default function App() {
           compareMode
           onMatchScale={handleMatchScale}
           matchScaleEnabled={matchScaleEnabled}
+          showOverlays={showOverlays}
+          onToggleOverlays={toggleOverlays}
         />
       )}
 
