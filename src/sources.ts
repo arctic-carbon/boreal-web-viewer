@@ -22,6 +22,7 @@ export type LayerSource = {
   hideRangeControls?: boolean;
   palette?: LandcoverClass[];
   colormapName?: "viridis" | "magma";
+  bandLabels?: string[];
 };
 
 // Glasbey BW categorical palette from colorcet (b_glasbey_bw), entries 1–25
@@ -104,6 +105,20 @@ export const SOURCES: LayerSource[] = [
     dataMax: 0.74,
     dataType: "float32",
     colormapName: "magma",
+    bandLabels: [
+      "GFDL-ESM4 ssp126",
+      "NorESM2-MM ssp126",
+      "TaiESM1 ssp126",
+      "UKESM1-0-LL ssp126",
+      "GFDL-ESM4 ssp245",
+      "NorESM2-MM ssp245",
+      "TaiESM1 ssp245",
+      "UKESM1-0-LL ssp245",
+      "GFDL-ESM4 ssp370",
+      "NorESM2-MM ssp370",
+      "TaiESM1 ssp370",
+      "UKESM1-0-LL ssp370",
+    ],
   },
   {
     id: "landcover",

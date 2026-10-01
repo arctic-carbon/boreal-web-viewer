@@ -187,29 +187,53 @@ export function LayerPanel({
           <p style={{ margin: "0 0 6px 0", fontSize: "12px", color: "#666" }}>
             Band
           </p>
-          <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
-            {Array.from({ length: state.bandCount }, (_, i) => i + 1).map(
-              (band) => (
-                <button
-                  key={band}
-                  type="button"
-                  onClick={() => state.setBand(band - 1)}
-                  style={{
-                    padding: "2px 8px",
-                    borderRadius: "4px",
-                    border: "1px solid #ccc",
-                    background:
-                      state.selectedBand === band - 1 ? "#333" : "transparent",
-                    color: state.selectedBand === band - 1 ? "#fff" : "#666",
-                    cursor: "pointer",
-                    fontSize: "12px",
-                  }}
-                >
-                  {band}
-                </button>
-              ),
-            )}
-          </div>
+          {state.selected.bandLabels ? (
+            <select
+              value={state.selectedBand}
+              onChange={(e) => state.setBand(Number(e.target.value))}
+              style={{
+                width: "100%",
+                padding: "6px 12px",
+                fontSize: "12px",
+                background: "#f0f0f0",
+                border: "1px solid #ccc",
+                borderRadius: "4px",
+                cursor: "pointer",
+              }}
+            >
+              {state.selected.bandLabels.map((label, i) => (
+                <option key={label} value={i}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
+              {Array.from({ length: state.bandCount }, (_, i) => i + 1).map(
+                (band) => (
+                  <button
+                    key={band}
+                    type="button"
+                    onClick={() => state.setBand(band - 1)}
+                    style={{
+                      padding: "2px 8px",
+                      borderRadius: "4px",
+                      border: "1px solid #ccc",
+                      background:
+                        state.selectedBand === band - 1
+                          ? "#333"
+                          : "transparent",
+                      color: state.selectedBand === band - 1 ? "#fff" : "#666",
+                      cursor: "pointer",
+                      fontSize: "12px",
+                    }}
+                  >
+                    {band}
+                  </button>
+                ),
+              )}
+            </div>
+          )}
         </div>
       )}
 
