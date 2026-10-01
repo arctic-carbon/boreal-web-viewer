@@ -8,7 +8,7 @@ https://arctic-carbon.github.io/denali-fire-risk/
 
 ## Data Layers
 
-High resolution maps of potential fire risk, carbon losses, and permafrost vulnerability to wildfire. These layers can be accessed at https://source.coop/luddaludwig/boreal-fire-carbon (note: these are not the final data products)
+High resolution maps of potential fire risk, carbon losses, and permafrost vulnerability to wildfire. These layers can be accessed at https://source.coop/luddaludwig/denali-fire-risk (note: these are not the final data products)
 
 Denali National Park infrastructure and landcover layers can be accessed at https://www.nps.gov/articles/irma.htm
 
