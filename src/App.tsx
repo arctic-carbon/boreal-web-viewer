@@ -190,6 +190,9 @@ function buildCOGLayer(
     geotiff: state.selected.url,
     maxRequests: MAX_TILE_REQUESTS,
     getTileData: state.trackingGetTileData,
+    updateTriggers: {
+      getTileData: [state.selectedBand, state.selected.id],
+    },
     renderTile: (tileData: TileData): RenderTileResult => ({
       renderPipeline: [
         {
@@ -391,7 +394,7 @@ export default function App() {
                     {(
                       leftState.clickInfo.value *
                       leftState.selected.displayScale
-                    ).toFixed(leftState.selected.displayScale < 1 ? 2 : 0)}{" "}
+                    ).toFixed(leftState.selected.displayDecimals ?? 0)}{" "}
                     {leftState.selected.units}
                   </strong>
                 </div>
@@ -445,9 +448,7 @@ export default function App() {
                       {(
                         rightState.clickInfo.value *
                         rightState.selected.displayScale
-                      ).toFixed(
-                        rightState.selected.displayScale < 1 ? 2 : 0,
-                      )}{" "}
+                      ).toFixed(rightState.selected.displayDecimals ?? 0)}{" "}
                       {rightState.selected.units}
                     </strong>
                   </div>

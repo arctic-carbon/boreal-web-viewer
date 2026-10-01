@@ -181,8 +181,8 @@ export function LayerPanel({
         </select>
       </div>
 
-      {/* Band selector — shown for multi-band layers */}
-      {state.bandCount > 1 && (
+      {/* Band selector — shown for multi-band layers where band selection is meaningful */}
+      {state.bandCount > 1 && !state.selected.singleBand && (
         <div style={{ marginBottom: "12px" }}>
           <p style={{ margin: "0 0 6px 0", fontSize: "12px", color: "#666" }}>
             Band

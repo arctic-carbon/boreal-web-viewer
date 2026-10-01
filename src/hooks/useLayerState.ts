@@ -76,10 +76,44 @@ export async function getTileData(
   const { device, x, y, signal, dataType = "uint16", band = 0 } = options;
   const tile = await fetchTileWithRetry(image, x, y, signal);
   const { width, height } = tile.array;
-  const raw =
-    "data" in tile.array
-      ? tile.array.data
-      : (tile.array.bands[band] ?? tile.array.bands[0]!);
+
+  // For INTERLEAVE=PIXEL files the library returns a single flat array with
+  // all bands interleaved: [B0P0, B1P0, ..., BnP0, B0P1, ...]. We need to
+  // de-interleave to get a single-band array for the GPU texture.
+  let raw: Uint16Array | Float32Array | Uint8Array;
+  if ("data" in tile.array) {
+    const data = tile.array.data as Uint16Array | Float32Array | Uint8Array;
+    const numPixels = width * height;
+    const bandCount = Math.round(data.length / numPixels);
+    if (bandCount > 1) {
+      if (data instanceof Float32Array) {
+        const out = new Float32Array(numPixels);
+        for (let i = 0; i < numPixels; i++) {
+          out[i] = data[i * bandCount + band];
+        }
+        raw = out;
+      } else if (data instanceof Uint16Array) {
+        const out = new Uint16Array(numPixels);
+        for (let i = 0; i < numPixels; i++) {
+          out[i] = data[i * bandCount + band];
+        }
+        raw = out;
+      } else {
+        const out = new Uint8Array(numPixels);
+        for (let i = 0; i < numPixels; i++) {
+          out[i] = data[i * bandCount + band];
+        }
+        raw = out;
+      }
+    } else {
+      raw = data;
+    }
+  } else {
+    const bands = (
+      tile.array as { bands: (Uint16Array | Float32Array | Uint8Array)[] }
+    ).bands;
+    raw = bands[band] ?? bands[0]!;
+  }
 
   if (dataType === "float32") {
     const typed = new Float32Array(raw.buffer, raw.byteOffset, raw.length);
@@ -367,11 +401,31 @@ export function useLayerState(initialIndex = 0): LayerState {
         const tile = await geotiff.fetchTile(tileX, tileY);
         const px = col % geotiff.tileWidth;
         const py = row % geotiff.tileHeight;
-        const arr =
-          "data" in tile.array
-            ? tile.array.data
-            : (tile.array.bands[selectedBand] ?? tile.array.bands[0]!);
-        const value = arr[py * tile.array.width + px]!;
+        let value: number;
+        if ("data" in tile.array) {
+          const data = tile.array.data as
+            | Uint8Array
+            | Uint16Array
+            | Float32Array;
+          const bandCount = Math.round(
+            data.length / (tile.array.width * tile.array.height),
+          );
+          const idx =
+            bandCount > 1
+              ? py * tile.array.width * bandCount +
+                px * bandCount +
+                selectedBand
+              : py * tile.array.width + px;
+          value = data[idx]!;
+        } else {
+          const bands = (
+            tile.array as {
+              bands: (Uint8Array | Uint16Array | Float32Array)[];
+            }
+          ).bands;
+          const arr = bands[selectedBand] ?? bands[0]!;
+          value = arr[py * tile.array.width + px]!;
+        }
         const isNodata =
           selected.dataType === "float32" ? Number.isNaN(value) : value === 0;
         if (isNodata) {
