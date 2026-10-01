@@ -88,22 +88,21 @@ export type VectorOverlayState = {
 export function useVectorOverlays(): VectorOverlayState {
   const [showOverlays, setShowOverlays] = useState(false);
   const cachedLayers = useRef<Layer[] | null>(null);
-  const [overlayLayers, setOverlayLayers] = useState<Layer[]>([]);
+  const [loadedLayers, setLoadedLayers] = useState<Layer[]>([]);
+
+  // Derived — no separate state needed.
+  const overlayLayers = showOverlays ? loadedLayers : [];
 
   const toggleOverlays = useCallback(() => {
     if (cachedLayers.current !== null) {
-      setShowOverlays((prev) => {
-        const next = !prev;
-        setOverlayLayers(next ? (cachedLayers.current ?? []) : []);
-        return next;
-      });
+      setShowOverlays((prev) => !prev);
       return;
     }
     // First enable — load all layers then cache them.
     setShowOverlays(true);
     loadOverlayLayers().then((layers) => {
       cachedLayers.current = layers;
-      setOverlayLayers(layers);
+      setLoadedLayers(layers);
     });
   }, []);
 
