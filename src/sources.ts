@@ -11,15 +11,15 @@ export type LayerSource = {
 };
 
 export const SOURCES: LayerSource[] = [
-  {
-    id: "AGC_ssp585",
-    url: `${BASE}/AGC_ssp585.tif`,
-    title: "Above-ground combustion SSP-585",
-    units: "g-C/m²",
-    displayScale: 1,
-    dataMin: 95,
-    dataMax: 3295,
-  },
+  // {
+  //   id: "AGC_ssp585",
+  //   url: `${BASE}/AGC_ssp585.tif`,
+  //   title: "Above-ground combustion SSP-585",
+  //   units: "g-C/m²",
+  //   displayScale: 1,
+  //   dataMin: 95,
+  //   dataMax: 3295,
+  // },
   {
     id: "AGC_ssp585smooth",
     url: `${BASE}/AGC_ssp585_smoothed.tif`,
@@ -38,15 +38,15 @@ export const SOURCES: LayerSource[] = [
     dataMin: 72,
     dataMax: 3281,
   },
-  {
-    id: "BGC_ssp585",
-    url: `${BASE}/BGC_ssp585.tif`,
-    title: "Below-ground combustion SSP-585",
-    units: "g-C/m²",
-    displayScale: 1,
-    dataMin: 1079,
-    dataMax: 5645,
-  },
+  // {
+  //   id: "BGC_ssp585",
+  //   url: `${BASE}/BGC_ssp585.tif`,
+  //   title: "Below-ground combustion SSP-585",
+  //   units: "g-C/m²",
+  //   displayScale: 1,
+  //   dataMin: 1079,
+  //   dataMax: 5645,
+  // },
   {
     id: "BGC_ssp585smooth",
     url: `${BASE}/BGC_ssp585_smoothed.tif`,
