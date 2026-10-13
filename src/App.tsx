@@ -13,6 +13,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { MapRef } from "react-map-gl/maplibre";
 import { Map as MaplibreMap, Popup, useControl } from "react-map-gl/maplibre";
 import { LayerPanel } from "./components/LayerPanel.js";
+import { ScaleBar } from "./components/ScaleBar.js";
 import type { TileData } from "./hooks/useLayerState.js";
 import { useLayerState } from "./hooks/useLayerState.js";
 import { useVectorOverlays } from "./hooks/useVectorOverlays.js";
@@ -629,6 +630,8 @@ export default function App() {
           onToggleOverlays={toggleOverlays}
         />
       )}
+
+      <ScaleBar zoom={viewState.zoom} latitude={viewState.latitude} />
 
       {/* Mode toggle */}
       <div
