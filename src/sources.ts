@@ -21,6 +21,15 @@ export const SOURCES: LayerSource[] = [
     dataMax: 3295,
   },
   {
+    id: "AGC_ssp585smooth",
+    url: `${BASE}/AGC_ssp585_smoothed.tif`,
+    title: "Above-ground combustion SSP-585",
+    units: "g-C/m²",
+    displayScale: 1,
+    dataMin: 95,
+    dataMax: 3295,
+  },
+  {
     id: "AGC_historical",
     url: `${BASE}/AGC_historical.tif`,
     title: "Above-ground combustion Historical",
@@ -32,6 +41,15 @@ export const SOURCES: LayerSource[] = [
   {
     id: "BGC_ssp585",
     url: `${BASE}/BGC_ssp585.tif`,
+    title: "Below-ground combustion SSP-585",
+    units: "g-C/m²",
+    displayScale: 1,
+    dataMin: 1079,
+    dataMax: 5645,
+  },
+  {
+    id: "BGC_ssp585smooth",
+    url: `${BASE}/BGC_ssp585_smoothed.tif`,
     title: "Below-ground combustion SSP-585",
     units: "g-C/m²",
     displayScale: 1,
