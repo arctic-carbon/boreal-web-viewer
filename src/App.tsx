@@ -13,6 +13,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { MapRef } from "react-map-gl/maplibre";
 import { Map as MaplibreMap, Popup, useControl } from "react-map-gl/maplibre";
 import { LayerPanel } from "./components/LayerPanel.js";
+import { ScaleBar } from "./components/ScaleBar.js";
 import type { TileData } from "./hooks/useLayerState.js";
 import { useLayerState } from "./hooks/useLayerState.js";
 
@@ -540,6 +541,8 @@ export default function App() {
           matchScaleEnabled={matchScaleEnabled}
         />
       )}
+
+      <ScaleBar zoom={viewState.zoom} latitude={viewState.latitude} />
 
       {/* Mode toggle */}
       <div
