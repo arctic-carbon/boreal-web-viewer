@@ -21,7 +21,7 @@ export type LayerSource = {
   singleBand?: boolean;
   hideRangeControls?: boolean;
   palette?: LandcoverClass[];
-  colormapName?: "viridis" | "magma";
+  colormapName?: "viridis" | "magma" | "plasma";
   bandLabels?: string[];
 };
 
@@ -180,6 +180,18 @@ export const SOURCES: LayerSource[] = [
     singleBand: true,
     hideRangeControls: true,
     palette: LANDCOVER_PALETTE,
+  },
+  {
+    id: "dem",
+    url: `${BASE}/denali_dem.tif`,
+    title: "Elevation",
+    units: "m",
+    displayScale: 1,
+    displayDecimals: 1,
+    dataMin: 74,
+    dataMax: 6179,
+    dataType: "float32",
+    colormapName: "plasma",
   },
   {
     id: "lithology",

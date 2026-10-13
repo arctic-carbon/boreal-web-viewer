@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { MapLayerMouseEvent } from "react-map-gl/maplibre";
 import colormap from "../colormap.js";
 import magma from "../magma.js";
+import plasma from "../plasma.js";
 import type { LayerSource } from "../sources.js";
 import { SOURCES } from "../sources.js";
 
@@ -400,7 +401,12 @@ export function useLayerState(initialIndex = 0): LayerState {
         createColormapTexture(device, new ImageData(data, 256, 1)),
       );
     } else {
-      const cm = selected.colormapName === "magma" ? magma : colormap;
+      const cm =
+        selected.colormapName === "magma"
+          ? magma
+          : selected.colormapName === "plasma"
+            ? plasma
+            : colormap;
       setColormapTexture(createColormapTexture(device, cm));
     }
   }, [device, selectedIndex]);
