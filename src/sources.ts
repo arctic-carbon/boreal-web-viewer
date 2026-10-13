@@ -21,15 +21,6 @@ export const SOURCES: LayerSource[] = [
     dataMax: 3295,
   },
   {
-    id: "AGC_ssp126",
-    url: `${BASE}/AGC_ssp126.tif`,
-    title: "Above-ground combustion SSP-126",
-    units: "g-C/m²",
-    displayScale: 1,
-    dataMin: 85,
-    dataMax: 3297,
-  },
-  {
     id: "AGC_historical",
     url: `${BASE}/AGC_historical.tif`,
     title: "Above-ground combustion Historical",
@@ -48,15 +39,6 @@ export const SOURCES: LayerSource[] = [
     dataMax: 5645,
   },
   {
-    id: "BGC_ssp126",
-    url: `${BASE}/BGC_ssp126.tif`,
-    title: "Below-ground combustion SSP-126",
-    units: "g-C/m²",
-    displayScale: 1,
-    dataMin: 1099,
-    dataMax: 5539,
-  },
-  {
     id: "BGC_historical",
     url: `${BASE}/BGC_historical.tif`,
     title: "Below-ground combustion Historical",
@@ -73,14 +55,5 @@ export const SOURCES: LayerSource[] = [
     displayScale: 0.01,
     dataMin: 467,
     dataMax: 2111,
-  },
-  {
-    id: "Depth_ssp126",
-    url: `${BASE}/Depth_ssp126.tif`,
-    title: "Burn depth SSP-126",
-    units: "cm",
-    displayScale: 0.01,
-    dataMin: 491,
-    dataMax: 2166,
   },
 ];
