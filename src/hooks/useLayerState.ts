@@ -4,7 +4,8 @@ import type { Device, Texture } from "@luma.gl/core";
 import proj4 from "proj4";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { MapLayerMouseEvent } from "react-map-gl/maplibre";
-import colormap from "../colormap.js";
+import viridisColormap from "../colormap.js";
+import magmaColormap from "../colormaps/magma.js";
 import type { LayerSource } from "../sources.js";
 import { SOURCES } from "../sources.js";
 
@@ -214,8 +215,14 @@ export function useLayerState(initialIndex = 0): LayerState {
       );
       return;
     }
-    setColormapTexture(createColormapTexture(device, colormap));
-  }, [device]);
+    const colormapData =
+      selected.colormap === "magma" ? magmaColormap : viridisColormap;
+    const tex = createColormapTexture(device, colormapData);
+    setColormapTexture((prev) => {
+      prev?.destroy();
+      return tex;
+    });
+  }, [device, selected.colormap]);
 
   const trackingGetTileData: typeof getTileData = useCallback(
     async (image, options) => {
