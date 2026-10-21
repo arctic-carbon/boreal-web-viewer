@@ -8,6 +8,7 @@ export type LayerSource = {
   dataMax: number;
   units: string;
   displayScale: number;
+  colormap: "viridis" | "magma";
 };
 
 export const SOURCES: LayerSource[] = [
@@ -28,6 +29,7 @@ export const SOURCES: LayerSource[] = [
     displayScale: 1,
     dataMin: 95,
     dataMax: 3295,
+    colormap: "viridis",
   },
   {
     id: "AGC_historical",
@@ -37,6 +39,7 @@ export const SOURCES: LayerSource[] = [
     displayScale: 1,
     dataMin: 72,
     dataMax: 3281,
+    colormap: "viridis",
   },
   // {
   //   id: "BGC_ssp585",
@@ -55,6 +58,7 @@ export const SOURCES: LayerSource[] = [
     displayScale: 1,
     dataMin: 1079,
     dataMax: 5645,
+    colormap: "viridis",
   },
   {
     id: "BGC_historical",
@@ -64,6 +68,7 @@ export const SOURCES: LayerSource[] = [
     displayScale: 1,
     dataMin: 985,
     dataMax: 5762,
+    colormap: "viridis",
   },
   // {
   //   id: "Depth_ssp585",
@@ -82,5 +87,16 @@ export const SOURCES: LayerSource[] = [
     displayScale: 0.01,
     dataMin: 467,
     dataMax: 2111,
+    colormap: "viridis",
+  },
+  {
+    id: "transient_thaw",
+    url: `${BASE}/TransientThaw_C_loss_mean_ssp585_cog.tif`,
+    title: "Transient Thaw C loss SSP-585",
+    units: "g-C/m²",
+    displayScale: 1,
+    dataMin: 182,
+    dataMax: 21300,
+    colormap: "magma",
   },
 ];
