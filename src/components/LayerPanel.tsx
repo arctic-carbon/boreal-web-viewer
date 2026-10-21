@@ -406,7 +406,9 @@ export function LayerPanel({
           height: "12px",
           borderRadius: "2px",
           background:
-            "linear-gradient(to right, #440154, #3b528b, #21918c, #5ec962, #b5de2b, #fde725)",
+            state.selected.colormap === "magma"
+              ? "linear-gradient(to right, #000004, #3b0f70, #8c2981, #de4968, #fca50a, #fcfdbf)"
+              : "linear-gradient(to right, #440154, #3b528b, #21918c, #5ec962, #b5de2b, #fde725)",
           marginBottom: "4px",
         }}
       />
